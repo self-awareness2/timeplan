@@ -1,0 +1,15 @@
+/build/
+/data/
+/assets/
+/run/
+/tools/
+/.claude/
+/client/web/node_modules/
+/client/web/dist/
+/client/android/.gradle/
+/client/android/build/
+/client/android/app/build/
+*.user
+*.suo
+.vs/
+cmake-build-*/

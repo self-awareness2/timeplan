@@ -11,5 +11,6 @@
 /client/android/app/build/
 *.user
 *.suo
+*.exe
 .vs/
 cmake-build-*/

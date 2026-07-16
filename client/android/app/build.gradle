@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace "com.timeplanner.app"
+    namespace "com.chrona.app"
     compileSdk 35
 
     buildFeatures {
@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.timeplanner.app"
+        applicationId "com.chrona.app"
         minSdk 23
         targetSdk 35
         versionCode 1

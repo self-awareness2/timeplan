@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
-	"timeplanner/server/internal/admin"
-	"timeplanner/server/internal/auth"
-	"timeplanner/server/internal/db"
-	"timeplanner/server/internal/schedules"
+	"chrona/server/internal/admin"
+	"chrona/server/internal/auth"
+	"chrona/server/internal/db"
+	"chrona/server/internal/schedules"
 )
 
 func Run() error {

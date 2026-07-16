@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"timeplanner/server/internal/auth"
+	"chrona/server/internal/auth"
 )
 
 func RegisterRoutes(group *gin.RouterGroup, authService *auth.Service, service *Service) {

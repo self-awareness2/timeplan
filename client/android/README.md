@@ -1,8 +1,8 @@
-# TimePlanner Android
+# Chrona 时序 Android
 
-This is the smallest Android client for TimePlanner: a native Java WebView shell.
+This is the smallest Android client for Chrona 时序: a native Java WebView shell.
 
-It does not bundle the web assets. The APK opens the TimePlanner web server URL,
+It does not bundle the web assets. The APK opens the Chrona web server URL,
 so account login and data sync still use the same Go backend.
 
 ## Build

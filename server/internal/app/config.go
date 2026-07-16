@@ -23,10 +23,10 @@ func LoadConfig() Config {
 	dataDir := filepath.Join(root, "data", "server")
 	return Config{
 		Port:       env("PORT", "8765"),
-		Secret:     env("TIME_PLANNER_SECRET", "dev-change-me"),
-		AdminToken: env("TIME_PLANNER_ADMIN_TOKEN", ""),
+		Secret:     env("CHRONA_SECRET", "dev-change-me"),
+		AdminToken: env("CHRONA_ADMIN_TOKEN", ""),
 		DataDir:    dataDir,
-		DBPath:     filepath.Join(dataDir, "timeplanner.sqlite"),
+		DBPath:     filepath.Join(dataDir, "chrona.sqlite"),
 		DistDir:    filepath.Join(root, "client", "web", "dist"),
 		RootDir:    root,
 	}

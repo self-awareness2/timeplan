@@ -9,7 +9,7 @@ export function renderAuth(root: HTMLElement, onReady: () => void): void {
       <main class="auth-screen">
         <section class="auth-panel">
           <div class="auth-copy">
-            <p class="auth-kicker">TimePlanner</p>
+            <p class="auth-kicker">Chrona 时序</p>
             <h1>时间安排计划</h1>
             <p>登录后可在网页、手机和桌面之间同步计划。</p>
           </div>
@@ -17,8 +17,8 @@ export function renderAuth(root: HTMLElement, onReady: () => void): void {
             <h2>${mode === 'login' ? '登录' : '注册账号'}</h2>
             ${error ? `<div class="auth-error">${escapeHtml(error)}</div>` : ''}
             <label>
-              邮箱
-              <input id="auth-email" type="email" autocomplete="email" inputmode="email" required />
+              用户名
+              <input id="auth-username" type="text" autocomplete="username" required maxlength="32" />
             </label>
             <label>
               密码
@@ -39,13 +39,13 @@ export function renderAuth(root: HTMLElement, onReady: () => void): void {
     root.querySelector('#auth-form')?.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (busy) return;
-      const email = (root.querySelector('#auth-email') as HTMLInputElement).value.trim();
+      const username = (root.querySelector('#auth-username') as HTMLInputElement).value.trim();
       const password = (root.querySelector('#auth-password') as HTMLInputElement).value;
       try {
         busy = true;
         setSubmitDisabled(root, true);
-        if (mode === 'login') await api.login(email, password);
-        else await api.register(email, password);
+        if (mode === 'login') await api.login(username, password);
+        else await api.register(username, password);
         onReady();
       } catch (err) {
         busy = false;
@@ -53,7 +53,7 @@ export function renderAuth(root: HTMLElement, onReady: () => void): void {
       }
     });
 
-    (root.querySelector('#auth-email') as HTMLInputElement | null)?.focus();
+    (root.querySelector('#auth-username') as HTMLInputElement | null)?.focus();
   };
 
   paint();

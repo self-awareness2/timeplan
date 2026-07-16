@@ -1,4 +1,4 @@
-module timeplanner/server
+module chrona/server
 
 go 1.22
 

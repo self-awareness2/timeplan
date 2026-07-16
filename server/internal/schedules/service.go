@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"timeplanner/server/internal/db"
+	"chrona/server/internal/db"
 )
 
 type Service struct {

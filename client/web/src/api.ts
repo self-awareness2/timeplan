@@ -17,11 +17,17 @@ interface ApiResponse<T> {
 
 export interface AuthSession {
   token: string;
-  user: { email: string };
+  user: { username: string };
 }
 
-const tokenKey = 'time_planner_token';
+const tokenKey = 'chrona_token';
 const authExpiredEvent = 'time-planner-auth-expired';
+
+function apiBasePath(): string {
+  return window.location.pathname === '/timeplan' || window.location.pathname.startsWith('/timeplan/')
+    ? '/timeplan'
+    : '';
+}
 
 function isDesktopBridge(): boolean {
   return false;
@@ -45,7 +51,7 @@ function handleAuthError(status: number, error?: string): void {
 
 async function call<T>(action: string, params?: object): Promise<T> {
   const body = JSON.stringify({ action, params: params ?? {} });
-  const res = await fetch('/api', {
+  const res = await fetch(`${apiBasePath()}/api`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body,
@@ -59,7 +65,7 @@ async function call<T>(action: string, params?: object): Promise<T> {
 }
 
 async function authCall<T>(path: string, body?: object): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(`${apiBasePath()}${path}`, {
     method: body ? 'POST' : 'GET',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: body ? JSON.stringify(body) : undefined,
@@ -76,18 +82,18 @@ export const api = {
   isDesktop: isDesktopBridge,
   authExpiredEvent,
   hasToken: () => Boolean(localStorage.getItem(tokenKey)),
-  login: async (email: string, password: string) => {
-    const session = await authCall<AuthSession>('/auth/login', { email, password });
+  login: async (username: string, password: string) => {
+    const session = await authCall<AuthSession>('/auth/login', { username, password });
     localStorage.setItem(tokenKey, session.token);
     return session.user;
   },
-  register: async (email: string, password: string) => {
-    const session = await authCall<AuthSession>('/auth/register', { email, password });
+  register: async (username: string, password: string) => {
+    const session = await authCall<AuthSession>('/auth/register', { username, password });
     localStorage.setItem(tokenKey, session.token);
     return session.user;
   },
   logout: () => localStorage.removeItem(tokenKey),
-  me: () => authCall<{ user: { email: string } }>('/auth/me'),
+  me: () => authCall<{ user: { username: string } }>('/auth/me'),
   getToday: () => call<TodayInfo>('getToday'),
   listDay: (date: string) => call<DayViewData>('listDay', { date }),
   listWeek: (date: string) => call<WeekViewData>('listWeek', { date }),

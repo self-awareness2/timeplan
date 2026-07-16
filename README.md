@@ -1,6 +1,6 @@
-# TimePlanner
+# Chrona 时序
 
-TimePlanner is organized as a unified client/server app. The Windows desktop app and the web app both use the same HTTP backend, so account login and schedule data stay synchronized across platforms.
+Chrona (时序) is a unified planning app. The Windows desktop app and the web app both use the same HTTP backend, so account login and schedule data stay synchronized across platforms.
 
 ## Structure
 
@@ -22,7 +22,7 @@ Web browser
 Future mobile app
     -> client/web UI
     -> server HTTP API
-    -> data/server/timeplanner.sqlite
+    -> data/server/chrona.sqlite
 ```
 
 The desktop executable is now a native Windows shell around the same web client used by browsers. Business logic, accounts, and persistence live in `server/`.
@@ -66,13 +66,13 @@ http://localhost:8765
 For production, set:
 
 ```powershell
-$env:TIME_PLANNER_SECRET = "replace-with-a-long-random-secret"
+$env:CHRONA_SECRET = "replace-with-a-long-random-secret"
 ```
 
 Data is stored at:
 
 ```text
-data/server/timeplanner.sqlite
+data/server/chrona.sqlite
 ```
 
 ## Web Client
@@ -90,7 +90,7 @@ The Go server serves `client/web/dist`.
 Start the server first, then run:
 
 ```powershell
-.\build\Release\time_planner.exe
+.\build\Release\chrona.exe
 ```
 
 By default the Windows client opens:
@@ -102,8 +102,8 @@ http://localhost:8765
 To point it at a deployed server:
 
 ```powershell
-$env:TIME_PLANNER_URL = "https://your-domain.example"
-.\build\Release\time_planner.exe
+$env:CHRONA_URL = "https://your-domain.example"
+.\build\Release\chrona.exe
 ```
 
 Build the Windows shell:

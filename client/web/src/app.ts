@@ -58,7 +58,7 @@ export class App {
     this.root.innerHTML = `
       <div class="app-shell">
         <header class="header">
-          <h1>时间安排计划</h1>
+          <h1>Chrona 时序</h1>
           <div class="header-meta" id="header-meta"></div>
           <div class="header-stats" id="header-stats"></div>
           <div class="header-search">
@@ -130,7 +130,7 @@ export class App {
     const html = document.documentElement;
     const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     html.setAttribute('data-theme', next);
-    localStorage.setItem('time_planner_theme', next);
+    localStorage.setItem('chrona_theme', next);
     const toggle = this.root.querySelector('#theme-toggle');
     if (toggle) toggle.innerHTML = iconSvg(next === 'light' ? 'sun' : 'moon');
   }

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"chrona/server/internal/db"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	"timeplanner/server/internal/db"
 )
 
 type Service struct {
@@ -21,8 +21,8 @@ type Service struct {
 }
 
 type User struct {
-	ID    string `json:"-"`
-	Email string `json:"email"`
+	ID       string `json:"-"`
+	Username string `json:"username"`
 }
 
 func NewService(store *db.Store, secret string) *Service {
@@ -34,7 +34,7 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 	group.POST("/login", service.login)
 	group.GET("/me", service.RequireUser(), func(c *gin.Context) {
 		user := CurrentUser(c)
-		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"user": gin.H{"email": user.Email}}})
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"user": gin.H{"username": user.Username}}})
 	})
 }
 
@@ -44,12 +44,12 @@ func (s *Service) register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "请求格式不正确"})
 		return
 	}
-	email := normalizeEmail(req.Email)
-	if email == "" || len(req.Password) < 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "邮箱不能为空，密码至少 6 位"})
+	username := normalizeUsername(req.Username)
+	if username == "" || len(username) > 32 || len(req.Password) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "用户名不能为空且不超过 32 个字符，密码至少 6 位"})
 		return
 	}
-	if _, err := s.findUserByEmail(email); err == nil {
+	if _, err := s.findUserByUsername(username); err == nil {
 		c.JSON(http.StatusConflict, gin.H{"ok": false, "error": "账号已存在"})
 		return
 	}
@@ -59,10 +59,10 @@ func (s *Service) register(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "密码处理失败"})
 		return
 	}
-	user := User{ID: randomID(), Email: email}
+	user := User{ID: randomID(), Username: username}
 	_, err = s.store.DB.Exec(
-		`INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)`,
-		user.ID, user.Email, string(hash), time.Now().UTC().Format(time.RFC3339),
+		`INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)`,
+		user.ID, user.Username, string(hash), time.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "创建账号失败"})
@@ -77,15 +77,15 @@ func (s *Service) login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "请求格式不正确"})
 		return
 	}
-	row := s.store.DB.QueryRow(`SELECT id, email, password_hash FROM users WHERE email = ?`, normalizeEmail(req.Email))
+	row := s.store.DB.QueryRow(`SELECT id, username, password_hash FROM users WHERE username = ?`, normalizeUsername(req.Username))
 	var user User
 	var hash string
-	if err := row.Scan(&user.ID, &user.Email, &hash); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "邮箱或密码不正确"})
+	if err := row.Scan(&user.ID, &user.Username, &hash); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "用户名或密码不正确"})
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)) != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "邮箱或密码不正确"})
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "用户名或密码不正确"})
 		return
 	}
 	s.respondSession(c, user)
@@ -121,7 +121,7 @@ func (s *Service) respondSession(c *gin.Context, user User) {
 		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "生成登录态失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"token": token, "user": gin.H{"email": user.Email}}})
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"token": token, "user": gin.H{"username": user.Username}}})
 }
 
 func (s *Service) makeToken(userID string) (string, error) {
@@ -153,25 +153,25 @@ func (s *Service) verifyToken(tokenText string) (string, error) {
 	return userID, nil
 }
 
-func (s *Service) findUserByEmail(email string) (User, error) {
-	row := s.store.DB.QueryRow(`SELECT id, email FROM users WHERE email = ?`, email)
+func (s *Service) findUserByUsername(username string) (User, error) {
+	row := s.store.DB.QueryRow(`SELECT id, username FROM users WHERE username = ?`, username)
 	var user User
-	err := row.Scan(&user.ID, &user.Email)
+	err := row.Scan(&user.ID, &user.Username)
 	return user, err
 }
 
 func (s *Service) findUserByID(id string) (User, error) {
-	row := s.store.DB.QueryRow(`SELECT id, email FROM users WHERE id = ?`, id)
+	row := s.store.DB.QueryRow(`SELECT id, username FROM users WHERE id = ?`, id)
 	var user User
-	err := row.Scan(&user.ID, &user.Email)
+	err := row.Scan(&user.ID, &user.Username)
 	if err == sql.ErrNoRows {
 		return User{}, err
 	}
 	return user, err
 }
 
-func normalizeEmail(email string) string {
-	return strings.ToLower(strings.TrimSpace(email))
+func normalizeUsername(username string) string {
+	return strings.TrimSpace(username)
 }
 
 func randomID() string {
@@ -181,6 +181,6 @@ func randomID() string {
 }
 
 type credentials struct {
-	Email    string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 }

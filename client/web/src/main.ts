@@ -3,7 +3,7 @@ import { api } from './api';
 import { renderAuth } from './auth';
 import './styles/main.css';
 
-document.documentElement.setAttribute('data-theme', localStorage.getItem('time_planner_theme') || 'light');
+document.documentElement.setAttribute('data-theme', localStorage.getItem('chrona_theme') || 'light');
 
 const root = document.getElementById('app');
 if (!root) {

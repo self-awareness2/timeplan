@@ -53,6 +53,7 @@ async function call<T>(action: string, params?: object): Promise<T> {
   const body = JSON.stringify({ action, params: params ?? {} });
   const res = await fetch(`${apiBasePath()}/api`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body,
   });
@@ -67,6 +68,7 @@ async function call<T>(action: string, params?: object): Promise<T> {
 async function authCall<T>(path: string, body?: object): Promise<T> {
   const res = await fetch(`${apiBasePath()}${path}`, {
     method: body ? 'POST' : 'GET',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -103,6 +105,7 @@ export const api = {
   addItem: (item: ItemDraft) => call<{ id: number; item: ScheduleItem }>('addItem', { item }),
   updateItem: (id: number, item: ItemDraft) => call<ScheduleItem>('updateItem', { id, item }),
   deleteItem: (id: number) => call<{ id: number }>('deleteItem', { id }),
+  setExecution: (id: number, executionStatus: string, failureReason = '') => call<ScheduleItem>('setExecution', { id, executionStatus, failureReason }),
   search: (keyword: string) => call<{ keyword: string; items: ScheduleItem[] }>('search', { keyword }),
   stats: () => call<StatsData>('stats'),
   categories: () => call<string[]>('categories'),

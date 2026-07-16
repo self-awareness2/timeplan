@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -15,11 +16,15 @@ type Config struct {
 	RootDir    string
 }
 
-func LoadConfig() Config {
-	root, _ := filepath.Abs(".")
-	if filepath.Base(root) == "server" {
-		root = filepath.Dir(root)
+func (c Config) Validate() error {
+	if os.Getenv("CHRONA_ENV") == "production" && (c.Secret == "" || c.Secret == "dev-change-me") {
+		return fmt.Errorf("CHRONA_SECRET must be set to a non-default value")
 	}
+	return nil
+}
+
+func LoadConfig() Config {
+	root := projectRoot()
 	dataDir := filepath.Join(root, "data", "server")
 	return Config{
 		Port:       env("PORT", "8765"),
@@ -30,6 +35,24 @@ func LoadConfig() Config {
 		DistDir:    filepath.Join(root, "client", "web", "dist"),
 		RootDir:    root,
 	}
+}
+
+func projectRoot() string {
+	if configured := os.Getenv("CHRONA_ROOT"); configured != "" {
+		if absolute, err := filepath.Abs(configured); err == nil {
+			return absolute
+		}
+	}
+	start, _ := filepath.Abs(".")
+	for current := start; current != filepath.Dir(current); current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, "client", "web", "dist", "index.html")); err == nil {
+			return current
+		}
+		if filepath.Base(current) == "server" {
+			return filepath.Dir(current)
+		}
+	}
+	return start
 }
 
 func env(key, fallback string) string {

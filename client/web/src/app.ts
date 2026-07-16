@@ -47,6 +47,7 @@ export class App {
   constructor(root: HTMLElement) {
     this.root = root;
     this.renderShell();
+    window.addEventListener('chrona-schedule-updated', () => { void this.renderView(); });
   }
 
   async init(): Promise<void> {

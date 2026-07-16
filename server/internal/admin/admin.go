@@ -1,4 +1,4 @@
-package admin
+﻿package admin
 
 import (
 	"crypto/rand"
@@ -130,14 +130,14 @@ func (s *Service) summary(c *gin.Context) {
 		TodaySchedules:  s.count(`SELECT COUNT(*) FROM schedules WHERE date = ?`, today),
 		DBSize:          formatFileSize(s.dbPath),
 		DBPath:          s.dbPath,
-		Protection:      "鏈満璁块棶",
+		Protection:      "本机访问",
 		GeneratedAt:     time.Now().Format("2006-01-02 15:04:05"),
 		CompletedCount:  s.count(`SELECT COUNT(*) FROM schedules WHERE status = 'completed'`),
 		InProgressCount: s.count(`SELECT COUNT(*) FROM schedules WHERE status = 'in_progress'`),
 		PendingCount:    s.count(`SELECT COUNT(*) FROM schedules WHERE status = 'pending'`),
 	}
 	if s.token != "" {
-		data.Protection = "绠＄悊鍛?Token"
+		data.Protection = "管理�?Token"
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": data})
 }
@@ -295,7 +295,7 @@ func (s *Service) createUser(c *gin.Context) {
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "瀵嗙爜澶勭悊澶辫触"})
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "密码处理失败"})
 		return
 	}
 	id := randomID()
@@ -319,7 +319,7 @@ func (s *Service) updateUser(c *gin.Context) {
 	}
 	username := normalizeUsername(payload.Username)
 	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "閭涓嶈兘涓虹┖"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "用户名不能为空"})
 		return
 	}
 
@@ -334,7 +334,7 @@ func (s *Service) updateUser(c *gin.Context) {
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "瀵嗙爜澶勭悊澶辫触"})
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "密码处理失败"})
 		return
 	}
 	result, err := s.store.DB.Exec(`UPDATE users SET username = ?, password_hash = ? WHERE id = ?`, username, string(hash), id)
@@ -372,7 +372,7 @@ func (s *Service) deleteUser(c *gin.Context) {
 
 func respondUserUpdate(c *gin.Context, result sql.Result, err error) {
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"ok": false, "error": "淇濆瓨澶辫触锛岄偖绠卞彲鑳藉凡瀛樺湪"})
+		c.JSON(http.StatusConflict, gin.H{"ok": false, "error": "保存失败，用户名可能已存在"})
 		return
 	}
 	changed, _ := result.RowsAffected()
@@ -399,7 +399,7 @@ func (s *Service) lastScheduleTitle(userID string) string {
 
 func formatTimeRange(startTime, endTime string) string {
 	if startTime == "00:00" && endTime == "00:00" {
-		return "鍏ㄥぉ"
+		return "全天"
 	}
 	if endTime == "" || endTime == "00:00" {
 		return startTime
@@ -410,7 +410,7 @@ func formatTimeRange(startTime, endTime string) string {
 func formatFileSize(path string) string {
 	info, err := os.Stat(path)
 	if err != nil {
-		return "鏈煡"
+		return "未知"
 	}
 	size := float64(info.Size())
 	units := []string{"B", "KB", "MB", "GB"}
@@ -453,7 +453,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Chrona 鏃跺簭绠＄悊鍚庡彴</title>
+  <title>Chrona 时序管理后台</title>
   <style>
     :root{--bg:#f6f7fb;--panel:#fff;--panel2:#f8fafc;--line:#e5e9f1;--text:#161a22;--muted:#667085;--accent:#3867e8;--accent-soft:#eef3ff;--good:#139a63;--warn:#c98208;--danger:#cf3d3d;--shadow:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.05)}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
@@ -470,78 +470,78 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
 <body>
   <div class="shell">
     <aside class="side">
-      <div class="brand">Chrona 鏃跺簭</div>
+      <div class="brand">Chrona 时序</div>
       <div class="nav">
-        <button class="active" data-view="users">鐢ㄦ埛绠＄悊</button>
-        <button data-view="plans">璁″垝鏁版嵁</button>
-        <button data-view="overview">杩愯惀姒傝</button>
-        <button data-view="settings">绯荤粺璁剧疆</button>
+        <button class="active" data-view="users">用户管理</button>
+        <button data-view="plans">计划数据</button>
+        <button data-view="overview">运营概览</button>
+        <button data-view="settings">系统设置</button>
       </div>
     </aside>
     <main class="main">
       <header class="top">
-        <div><h1>鐢ㄦ埛绠＄悊</h1><div class="muted" id="generated">姝ｅ湪鍔犺浇鏁版嵁...</div></div>
-        <button class="btn primary" id="refreshBtn">鍒锋柊</button>
+        <div><h1>用户管理</h1><div class="muted" id="generated">正在加载数据...</div></div>
+        <button class="btn primary" id="refreshBtn">刷新</button>
       </header>
       <section class="content">
         <div class="view active" id="view-users">
         <div class="stats">
-          <div class="card stat"><div class="label">鎬荤敤鎴?/div><div class="num" id="userCount">-</div></div>
-          <div class="card stat"><div class="label">鎬昏鍒?/div><div class="num" id="scheduleCount">-</div></div>
-          <div class="card stat"><div class="label">浠婃棩鏂板鐢ㄦ埛</div><div class="num" id="todayUsers">-</div></div>
-          <div class="card stat"><div class="label">浠婃棩璁″垝</div><div class="num" id="todaySchedules">-</div></div>
+          <div class="card stat"><div class="label">总用�?/div><div class="num" id="userCount">-</div></div>
+          <div class="card stat"><div class="label">总计�?/div><div class="num" id="scheduleCount">-</div></div>
+          <div class="card stat"><div class="label">今日新增用户</div><div class="num" id="todayUsers">-</div></div>
+          <div class="card stat"><div class="label">今日计划</div><div class="num" id="todaySchedules">-</div></div>
         </div>
         <div class="grid">
           <section class="card">
             <div class="toolbar">
-              <input id="search" placeholder="鎼滅储鐢ㄦ埛閭..." />
-              <button class="btn" id="searchBtn">鎼滅储</button>
-              <button class="btn primary" id="createBtn">鏂板鐢ㄦ埛</button>
+              <input id="search" placeholder="搜索用户名..." />
+              <button class="btn" id="searchBtn">搜索</button>
+              <button class="btn primary" id="createBtn">新增用户</button>
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>鐢ㄦ埛</th><th>璁″垝</th><th>瀹屾垚</th><th>寰呭姙</th><th>鏈€杩戞椿鍔?/th><th>娉ㄥ唽鏃堕棿</th><th>鎿嶄綔</th></tr></thead>
-                <tbody id="usersBody"><tr><td colspan="7" class="empty">鍔犺浇涓?..</td></tr></tbody>
+                <thead><tr><th>用户</th><th>计划</th><th>完成</th><th>待办</th><th>最近活动</th><th>注册时间</th><th>操作</th></tr></thead>
+                <tbody id="usersBody"><tr><td colspan="7" class="empty">加载�?..</td></tr></tbody>
               </table>
             </div>
             <div class="footer">
               <span class="muted" id="pageInfo">-</span>
-              <div><button class="btn" id="prevBtn">涓婁竴椤?/button> <button class="btn" id="nextBtn">涓嬩竴椤?/button></div>
+              <div><button class="btn" id="prevBtn">上一�?/button> <button class="btn" id="nextBtn">下一�?/button></div>
             </div>
           </section>
           <aside class="card detail-card">
-            <div class="panel-head"><h2>鐢ㄦ埛璇︽儏</h2><span class="pill" id="detailState">鏈€夋嫨</span></div>
-            <div class="detail" id="detail"><div class="empty">鐐瑰嚮宸︿晶鐢ㄦ埛鏌ョ湅璐﹀彿鍜岃鍒掓槑缁?/div></div>
+            <div class="panel-head"><h2>用户详情</h2><span class="pill" id="detailState">未选择</span></div>
+            <div class="detail" id="detail"><div class="empty">点击左侧用户查看账号和计划明�?/div></div>
           </aside>
         </div>
         <div class="dbline" id="dbline"></div>
         </div>
         <div class="view" id="view-plans">
-          <div class="section-title"><h2>璁″垝鏁版嵁</h2><button class="btn" id="reloadPlansBtn">鍒锋柊璁″垝</button></div>
+          <div class="section-title"><h2>计划数据</h2><button class="btn" id="reloadPlansBtn">刷新计划</button></div>
           <section class="card">
             <div class="table-wrap">
               <table>
-                <thead><tr><th>ID</th><th>鐢ㄦ埛</th><th>鏍囬</th><th>鏃ユ湡</th><th>鏃堕棿</th><th>鐘舵€?/th><th>浼樺厛绾?/th><th>鏇存柊</th></tr></thead>
-                <tbody id="plansBody"><tr><td colspan="8" class="empty">鐐瑰嚮鍒锋柊璁″垝鍔犺浇鏁版嵁</td></tr></tbody>
+                <thead><tr><th>ID</th><th>用户</th><th>标题</th><th>日期</th><th>时间</th><th>状态</th><th>优先级</th><th>更新</th></tr></thead>
+                <tbody id="plansBody"><tr><td colspan="8" class="empty">点击刷新计划加载数据</td></tr></tbody>
               </table>
             </div>
           </section>
         </div>
         <div class="view" id="view-overview">
-          <div class="section-title"><h2>杩愯惀姒傝</h2><button class="btn" id="reloadOverviewBtn">鍒锋柊姒傝</button></div>
+          <div class="section-title"><h2>运营概览</h2><button class="btn" id="reloadOverviewBtn">刷新概览</button></div>
           <div class="mini-grid">
-            <div class="card info-card"><strong>鐢ㄦ埛瑙勬ā</strong><div class="muted" id="overviewUsers">-</div></div>
-            <div class="card info-card"><strong>璁″垝娲昏穬</strong><div class="muted" id="overviewPlans">-</div></div>
-            <div class="card info-card"><strong>瀹屾垚鎯呭喌</strong><div class="muted" id="overviewDone">-</div></div>
-            <div class="card info-card"><strong>鏁版嵁鏂囦欢</strong><div class="muted" id="overviewDb">-</div></div>
+            <div class="card info-card"><strong>用户规模</strong><div class="muted" id="overviewUsers">-</div></div>
+            <div class="card info-card"><strong>计划活跃</strong><div class="muted" id="overviewPlans">-</div></div>
+            <div class="card info-card"><strong>完成情况</strong><div class="muted" id="overviewDone">-</div></div>
+            <div class="card info-card"><strong>数据文件</strong><div class="muted" id="overviewDb">-</div></div>
           </div>
         </div>
         <div class="view" id="view-settings">
-          <div class="section-title"><h2>绯荤粺璁剧疆</h2></div>
+          <div class="section-title"><h2>系统设置</h2></div>
           <div class="mini-grid">
-            <div class="card info-card"><strong>绠＄悊鍛樿闂?/strong><div class="muted">榛樿浠呮湰鏈?鍐呯綉鍙闂紱鍏綉浣跨敤鏃跺缓璁缃?CHRONA_ADMIN_TOKEN銆?/div></div>
-            <div class="card info-card"><strong>鏁版嵁搴?/strong><div class="muted" id="settingsDb">-</div></div>
-            <div class="card info-card"><strong>鍚庡彴鏉冮檺</strong><div class="muted">褰撳墠鐗堟湰鏀寔鐢ㄦ埛澧炲垹鏀规煡鍜屽彧璇昏鍒掓煡鐪嬨€?/div></div>
+            <div class="card info-card"><strong>管理员访�?/strong><div class="muted">默认仅本�?内网可访问；公网使用时建议设�?CHRONA_ADMIN_TOKEN�?/div></div>
+            <div class="card info-card"><strong>数据�?/strong><div class="muted" id="settingsDb">-</div></div>
+            <div class="card info-card"><strong>后台权限</strong><div class="muted">当前版本支持用户增删改查和只读计划查看�?/div></div>
           </div>
         </div>
       </section>
@@ -549,16 +549,16 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
   </div>
   <div class="modal-mask" id="userModal">
     <div class="modal">
-      <div class="modal-head"><strong id="modalTitle">鏂板鐢ㄦ埛</strong><button class="btn small" id="modalClose">鍏抽棴</button></div>
+      <div class="modal-head"><strong id="modalTitle">新增用户</strong><button class="btn small" id="modalClose">关闭</button></div>
       <div class="modal-body">
         <input type="hidden" id="userId" />
-        <div class="field"><label>閭 / 璐﹀彿</label><input id="userUsername" autocomplete="off" /></div>
-        <div class="field"><label>瀵嗙爜</label><input id="userPassword" type="password" autocomplete="new-password" /></div>
-        <div class="hint" id="passwordHint">鏂板鐢ㄦ埛鏃跺瘑鐮佽嚦灏?6 浣嶃€?/div>
+        <div class="field"><label>用户名</label><input id="userUsername" autocomplete="off" /></div>
+        <div class="field"><label>密码</label><input id="userPassword" type="password" autocomplete="new-password" /></div>
+        <div class="hint" id="passwordHint">新增用户时密码至�?6 位�?/div>
       </div>
       <div class="modal-foot">
-        <button class="btn" id="modalCancel">鍙栨秷</button>
-        <button class="btn primary" id="saveUserBtn">淇濆瓨</button>
+        <button class="btn" id="modalCancel">取消</button>
+        <button class="btn primary" id="saveUserBtn">保存</button>
       </div>
     </div>
   </div>
@@ -571,14 +571,14 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       const headers = Object.assign({ 'Content-Type': 'application/json' }, token ? { 'X-Admin-Token': token } : {}, options.headers || {});
       const res = await fetch(withToken(path), Object.assign({}, options, { headers }));
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error || '璇锋眰澶辫触');
+      if (!json.ok) throw new Error(json.error || '请求失败');
       return json.data;
     }
     const text = (id, value) => document.getElementById(id).textContent = value;
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const fmt = (s) => s ? s.replace('T', ' ').slice(0, 19) : '-';
-    const statusLabel = { pending:'寰呭姙', in_progress:'杩涜涓?, completed:'宸插畬鎴?, cancelled:'宸插彇娑? };
-    const priorityLabel = { low:'浣?, medium:'涓?, high:'楂? };
+    const statusLabel = { pending:'待办', in_progress:'进行�?, completed:'已完�?, cancelled:'已取�? };
+    const priorityLabel = { low:'�?, medium:'�?, high:'�? };
 
     async function loadSummary() {
       const s = await api('/admin/api/summary');
@@ -587,10 +587,10 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       text('scheduleCount', s.scheduleCount);
       text('todayUsers', s.todayNewUsers);
       text('todaySchedules', s.todaySchedules);
-      text('generated', '鏇存柊鏃堕棿 ' + s.generatedAt + ' 路 ' + s.protection);
-      text('dbline', '鏁版嵁搴擄細' + s.dbPath + ' 路 澶у皬锛? + s.dbSize + ' 路 寰呭姙 ' + s.pendingCount + ' 路 杩涜涓?' + s.inProgressCount + ' 路 宸插畬鎴?' + s.completedCount);
+      text('generated', '更新时间 ' + s.generatedAt + ' · ' + s.protection);
+      text('dbline', '数据库：' + s.dbPath + ' · 大小�? + s.dbSize + ' · 待办 ' + s.pendingCount + ' · 进行�?' + s.inProgressCount + ' · 已完�?' + s.completedCount);
       updateOverview();
-      text('settingsDb', s.dbPath + ' 路 ' + s.dbSize);
+      text('settingsDb', s.dbPath + ' · ' + s.dbSize);
     }
 
     async function loadUsers() {
@@ -598,7 +598,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       total = data.total;
       const body = document.getElementById('usersBody');
       if (!data.items.length) {
-        body.innerHTML = '<tr><td colspan="7" class="empty">娌℃湁鎵惧埌鐢ㄦ埛</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" class="empty">没有找到用户</td></tr>';
       } else {
         body.innerHTML = data.items.map(u => '<tr class="user-row ' + (u.id === selectedId ? 'active' : '') + '" data-id="' + esc(u.id) + '">' +
           '<td><div class="username">' + esc(u.username) + '</div><div class="muted">' + esc(u.id) + '</div></td>' +
@@ -607,9 +607,9 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
           '<td><span class="pill warn">' + u.pendingCount + '</span></td>' +
           '<td><div>' + esc(u.lastScheduleTitle || '-') + '</div><div class="muted">' + fmt(u.lastScheduleAt) + '</div></td>' +
           '<td>' + fmt(u.createdAt) + '</td>' +
-          '<td><div class="actions"><button class="btn small" data-edit="' + esc(u.id) + '" data-username="' + esc(u.username) + '">缂栬緫</button><button class="btn small danger" data-delete="' + esc(u.id) + '" data-username="' + esc(u.username) + '">鍒犻櫎</button></div></td></tr>').join('');
+          '<td><div class="actions"><button class="btn small" data-edit="' + esc(u.id) + '" data-username="' + esc(u.username) + '">编辑</button><button class="btn small danger" data-delete="' + esc(u.id) + '" data-username="' + esc(u.username) + '">删除</button></div></td></tr>').join('');
       }
-      text('pageInfo', '绗?' + page + ' 椤碉紝鍏?' + total + ' 涓敤鎴?);
+      text('pageInfo', '�?' + page + ' 页，�?' + total + ' 个用�?);
       document.getElementById('prevBtn').disabled = page <= 1;
       document.getElementById('nextBtn').disabled = page * limit >= total;
       body.querySelectorAll('tr[data-id]').forEach(row => row.addEventListener('click', (event) => {
@@ -624,14 +624,14 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       selectedId = id;
       await loadUsers();
       const data = await api('/admin/api/users/' + encodeURIComponent(id));
-      text('detailState', '宸查€夋嫨');
+      text('detailState', '已选择');
       const u = data.user;
       document.getElementById('detail').innerHTML =
-        '<div class="kv"><div class="muted">閭</div><div class="username">' + esc(u.username) + '</div>' +
-        '<div class="muted">鐢ㄦ埛ID</div><div>' + esc(u.id) + '</div>' +
-        '<div class="muted">娉ㄥ唽鏃堕棿</div><div>' + fmt(u.createdAt) + '</div>' +
-        '<div class="muted">璁″垝鏁伴噺</div><div>' + u.scheduleCount + ' 椤?/div></div>' +
-        '<div class="schedule-list">' + (data.schedules.length ? data.schedules.map(renderSchedule).join('') : '<div class="empty">璇ョ敤鎴锋殏鏃犺鍒?/div>') + '</div>';
+        '<div class="kv"><div class="muted">用户名</div><div class="username">' + esc(u.username) + '</div>' +
+        '<div class="muted">用户ID</div><div>' + esc(u.id) + '</div>' +
+        '<div class="muted">注册时间</div><div>' + fmt(u.createdAt) + '</div>' +
+        '<div class="muted">计划数量</div><div>' + u.scheduleCount + ' �?/div></div>' +
+        '<div class="schedule-list">' + (data.schedules.length ? data.schedules.map(renderSchedule).join('') : '<div class="empty">该用户暂无计�?/div>') + '</div>';
     }
 
     function renderSchedule(s) {
@@ -644,7 +644,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       const data = await api('/admin/api/schedules?limit=100');
       const body = document.getElementById('plansBody');
       if (!data.items.length) {
-        body.innerHTML = '<tr><td colspan="8" class="empty">鏆傛棤璁″垝鏁版嵁</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" class="empty">暂无计划数据</td></tr>';
         return;
       }
       body.innerHTML = data.items.map(s => '<tr>' +
@@ -660,18 +660,18 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
 
     function updateOverview() {
       if (!lastSummary) return;
-      text('overviewUsers', '鎬荤敤鎴?' + lastSummary.userCount + '锛屼粖鏃ユ柊澧?' + lastSummary.todayNewUsers);
-      text('overviewPlans', '鎬昏鍒?' + lastSummary.scheduleCount + '锛屼粖鏃ヨ鍒?' + lastSummary.todaySchedules);
-      text('overviewDone', '寰呭姙 ' + lastSummary.pendingCount + '锛岃繘琛屼腑 ' + lastSummary.inProgressCount + '锛屽凡瀹屾垚 ' + lastSummary.completedCount);
-      text('overviewDb', lastSummary.dbPath + ' 路 ' + lastSummary.dbSize);
+      text('overviewUsers', '总用�?' + lastSummary.userCount + '，今日新�?' + lastSummary.todayNewUsers);
+      text('overviewPlans', '总计�?' + lastSummary.scheduleCount + '，今日计�?' + lastSummary.todaySchedules);
+      text('overviewDone', '待办 ' + lastSummary.pendingCount + '，进行中 ' + lastSummary.inProgressCount + '，已完成 ' + lastSummary.completedCount);
+      text('overviewDb', lastSummary.dbPath + ' · ' + lastSummary.dbSize);
     }
 
     function switchView(name) {
       document.querySelectorAll('.nav button[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
       document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
       document.getElementById('view-' + name).classList.add('active');
-      const titles = { users:'鐢ㄦ埛绠＄悊', plans:'璁″垝鏁版嵁', overview:'杩愯惀姒傝', settings:'绯荤粺璁剧疆' };
-      document.querySelector('.top h1').textContent = titles[name] || '绠＄悊鍚庡彴';
+      const titles = { users:'用户管理', plans:'计划数据', overview:'运营概览', settings:'系统设置' };
+      document.querySelector('.top h1').textContent = titles[name] || '管理后台';
       if (name === 'plans') loadPlans().catch(err => alert(err.message));
       if (name === 'overview') updateOverview();
     }
@@ -680,8 +680,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       document.getElementById('userId').value = id;
       document.getElementById('userUsername').value = username;
       document.getElementById('userPassword').value = '';
-      text('modalTitle', id ? '缂栬緫鐢ㄦ埛' : '鏂板鐢ㄦ埛');
-      text('passwordHint', id ? '涓嶅～鍐欏瘑鐮佸垯淇濇寔鍘熷瘑鐮佷笉鍙樸€? : '鏂板鐢ㄦ埛鏃跺瘑鐮佽嚦灏?6 浣嶃€?);
+      text('modalTitle', id ? '编辑用户' : '新增用户');
+      text('passwordHint', id ? '不填写密码则保持原密码不变�? : '新增用户时密码至�?6 位�?);
       document.getElementById('userModal').classList.add('show');
       document.getElementById('userUsername').focus();
     }
@@ -694,8 +694,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       const id = document.getElementById('userId').value;
       const username = document.getElementById('userUsername').value.trim();
       const password = document.getElementById('userPassword').value;
-      if (!username) return alert('璇峰～鍐欓偖绠?/ 璐﹀彿');
-      if (!id && password.length < 6) return alert('鏂板鐢ㄦ埛瀵嗙爜鑷冲皯 6 浣?);
+      if (!username) return alert('请填写邮�?/ 账号');
+      if (!id && password.length < 6) return alert('新增用户密码至少 6 �?);
       const body = JSON.stringify({ username, password });
       if (id) {
         await api('/admin/api/users/' + encodeURIComponent(id), { method: 'PUT', body });
@@ -709,12 +709,12 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
     }
 
     async function deleteUser(id, username) {
-      if (!confirm('纭畾鍒犻櫎鐢ㄦ埛 ' + username + '锛熻鐢ㄦ埛鐨勮鍒掍篃浼氫竴璧峰垹闄ゃ€?)) return;
+      if (!confirm('确定删除用户 ' + username + '？该用户的计划也会一起删除�?)) return;
       await api('/admin/api/users/' + encodeURIComponent(id), { method: 'DELETE' });
       if (selectedId === id) {
         selectedId = '';
-        text('detailState', '鏈€夋嫨');
-        document.getElementById('detail').innerHTML = '<div class="empty">鐐瑰嚮宸︿晶鐢ㄦ埛鏌ョ湅璐﹀彿鍜岃鍒掓槑缁?/div>';
+        text('detailState', '未选择');
+        document.getElementById('detail').innerHTML = '<div class="empty">点击左侧用户查看账号和计划明�?/div>';
       }
       await refresh();
     }
@@ -737,3 +737,4 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
   </script>
 </body>
 </html>`))
+

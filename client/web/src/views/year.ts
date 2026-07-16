@@ -56,6 +56,7 @@ export async function renderYearView(
   }
 
   container.appendChild(grid);
+
   return data.year;
 }
 
@@ -106,6 +107,26 @@ export async function renderStatsView(container: HTMLElement): Promise<void> {
     grid.appendChild(card);
   }
   container.appendChild(grid);
+
+  if (data.execution) {
+    const executionTitle = document.createElement('h3');
+    executionTitle.textContent = '执行结果';
+    executionTitle.style.margin = '18px 0 12px';
+    container.appendChild(executionTitle);
+    const executionChart = document.createElement('div');
+    executionChart.className = 'bar-chart card';
+    executionChart.style.padding = '16px';
+    const labels: Record<string, string> = { notStarted: '未开始', running: '执行中', executed: '按计划执行', delayed: '延迟执行', skipped: '未执行' };
+    const entries = Object.entries(data.execution).filter(([, value]) => value > 0);
+    const max = Math.max(1, ...entries.map(([, value]) => value));
+    for (const [key, value] of entries) {
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `<span>${labels[key] ?? escapeHtml(key)}</span><div class="bar-track"><div class="bar-fill execution-fill" style="width:${(value / max) * 100}%"></div></div><span>${value}</span>`;
+      executionChart.appendChild(row);
+    }
+    container.appendChild(executionChart);
+  }
 
   const catTitle = document.createElement('h3');
   catTitle.textContent = '分类分布';

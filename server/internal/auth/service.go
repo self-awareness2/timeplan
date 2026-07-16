@@ -41,22 +41,22 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 func (s *Service) register(c *gin.Context) {
 	var req credentials
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "请求格式不正确"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "code": "invalid_request", "error": "invalid request"})
 		return
 	}
 	username := normalizeUsername(req.Username)
 	if username == "" || len(username) > 32 || len(req.Password) < 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "用户名不能为空且不超过 32 个字符，密码至少 6 位"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "code": "invalid_request", "error": "invalid request"})
 		return
 	}
 	if _, err := s.findUserByUsername(username); err == nil {
-		c.JSON(http.StatusConflict, gin.H{"ok": false, "error": "账号已存在"})
+		c.JSON(http.StatusConflict, gin.H{"ok": false, "code": "username_taken", "error": "username already exists"})
 		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "密码处理失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "code": "server_error", "error": "server error"})
 		return
 	}
 	user := User{ID: randomID(), Username: username}
@@ -65,7 +65,7 @@ func (s *Service) register(c *gin.Context) {
 		user.ID, user.Username, string(hash), time.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "创建账号失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "code": "server_error", "error": "server error"})
 		return
 	}
 	s.respondSession(c, user)
@@ -74,18 +74,18 @@ func (s *Service) register(c *gin.Context) {
 func (s *Service) login(c *gin.Context) {
 	var req credentials
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "请求格式不正确"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "code": "invalid_request", "error": "invalid request"})
 		return
 	}
 	row := s.store.DB.QueryRow(`SELECT id, username, password_hash FROM users WHERE username = ?`, normalizeUsername(req.Username))
 	var user User
 	var hash string
 	if err := row.Scan(&user.ID, &user.Username, &hash); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "用户名或密码不正确"})
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "code": "invalid_credentials", "error": "username or password is incorrect"})
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)) != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "用户名或密码不正确"})
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "code": "invalid_credentials", "error": "username or password is incorrect"})
 		return
 	}
 	s.respondSession(c, user)
@@ -95,14 +95,19 @@ func (s *Service) RequireUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		tokenText := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenText == "" {
+			if cookie, err := c.Request.Cookie("chrona_session"); err == nil {
+				tokenText = cookie.Value
+			}
+		}
 		userID, err := s.verifyToken(tokenText)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "请先登录"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"ok": false, "code": "auth_required", "error": "authentication required"})
 			return
 		}
 		user, err := s.findUserByID(userID)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "登录已失效"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"ok": false, "code": "session_expired", "error": "session expired"})
 			return
 		}
 		c.Set("user", user)
@@ -118,9 +123,13 @@ func CurrentUser(c *gin.Context) User {
 func (s *Service) respondSession(c *gin.Context, user User) {
 	token, err := s.makeToken(user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "生成登录态失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "code": "server_error", "error": "server error"})
 		return
 	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name: "chrona_session", Value: token, Path: "/", MaxAge: 24 * 60 * 60,
+		HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: c.Request.TLS != nil,
+	})
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"token": token, "user": gin.H{"username": user.Username}}})
 }
 

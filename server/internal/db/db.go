@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -50,6 +51,11 @@ CREATE TABLE IF NOT EXISTS schedules (
 	repeat_type TEXT NOT NULL DEFAULT 'none',
 	priority TEXT NOT NULL DEFAULT 'medium',
 	status TEXT NOT NULL DEFAULT 'pending',
+	execution_status TEXT NOT NULL DEFAULT 'not_started',
+	actual_start_at TEXT NOT NULL DEFAULT '',
+	actual_end_at TEXT NOT NULL DEFAULT '',
+	execution_minutes INTEGER NOT NULL DEFAULT 0,
+	failure_reason TEXT NOT NULL DEFAULT '',
 	category TEXT NOT NULL DEFAULT '',
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL,
@@ -59,5 +65,19 @@ CREATE TABLE IF NOT EXISTS schedules (
 CREATE INDEX IF NOT EXISTS idx_schedules_user_date ON schedules(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_schedules_user_status ON schedules(user_id, status);
 `)
-	return err
+	if err != nil {
+		return err
+	}
+	for _, statement := range []string{
+		`ALTER TABLE schedules ADD COLUMN execution_status TEXT NOT NULL DEFAULT 'not_started'`,
+		`ALTER TABLE schedules ADD COLUMN actual_start_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE schedules ADD COLUMN actual_end_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE schedules ADD COLUMN execution_minutes INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE schedules ADD COLUMN failure_reason TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := s.DB.Exec(statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			return err
+		}
+	}
+	return nil
 }

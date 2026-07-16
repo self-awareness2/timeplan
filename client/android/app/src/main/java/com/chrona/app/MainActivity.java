@@ -1,4 +1,4 @@
-package com.chrona.app;
+﻿package com.chrona.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -66,13 +66,13 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(247, 248, 251));
         setContentView(root);
 
-        TextView brand = title("时间安排计划", 28);
-        TextView sub = muted("登录后同步网页、桌面和手机计划");
-        EditText username = input("用户名");
-        EditText password = input("密码");
+        TextView brand = title("ʱ�䰲�żƻ�", 28);
+        TextView sub = muted("��¼��ͬ����ҳ��������ֻ��ƻ�");
+        EditText username = input("�û���");
+        EditText password = input("����");
         password.setInputType(0x00000081);
-        Button primary = primaryButton(registerMode ? "创建账号" : "登录");
-        Button switchMode = plainButton(registerMode ? "已有账号？登录" : "没有账号？注册");
+        Button primary = primaryButton(registerMode ? "�����˺�" : "��¼");
+        Button switchMode = plainButton(registerMode ? "�����˺ţ���¼" : "û���˺ţ�ע��");
 
         root.addView(brand);
         root.addView(sub);
@@ -90,11 +90,11 @@ public class MainActivity extends Activity {
             String usernameValue = username.getText().toString().trim();
             String passwordValue = password.getText().toString();
             if (usernameValue.isEmpty() || passwordValue.length() < 6) {
-                toast("请输入用户名和至少 6 位密码");
+                toast("�������û��������� 6 λ����");
                 return;
             }
             primary.setEnabled(false);
-            primary.setText("处理中...");
+            primary.setText("������...");
             runAsync(() -> {
                 try {
                     JSONObject body = new JSONObject();
@@ -111,7 +111,7 @@ public class MainActivity extends Activity {
                 } catch (Exception e) {
                     runOnUiThread(() -> {
                         primary.setEnabled(true);
-                        primary.setText(registerMode ? "创建账号" : "登录");
+                        primary.setText(registerMode ? "�����˺�" : "��¼");
                         toast(e.getMessage());
                     });
                 }
@@ -129,17 +129,17 @@ public class MainActivity extends Activity {
         LinearLayout header = horizontal();
         header.setPadding(dp(16), dp(16), dp(16), dp(10));
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = title("每日计划", 24);
-        Button logout = plainButton("退出");
+        TextView title = title("ÿ�ռƻ�", 24);
+        Button logout = plainButton("�˳�");
         header.addView(title, weightParams(1));
         header.addView(logout);
         root.addView(header);
 
         LinearLayout nav = horizontal();
         nav.setPadding(dp(16), dp(0), dp(16), dp(10));
-        Button prev = secondaryButton("上一天");
-        Button today = secondaryButton("今天");
-        Button next = secondaryButton("下一天");
+        Button prev = secondaryButton("��һ��");
+        Button today = secondaryButton("����");
+        Button next = secondaryButton("��һ��");
         nav.addView(prev, weightParams(1));
         nav.addView(today, weightParams(1));
         nav.addView(next, weightParams(1));
@@ -158,7 +158,7 @@ public class MainActivity extends Activity {
         scroll.addView(list);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        Button add = primaryButton("+ 添加计划");
+        Button add = primaryButton("+ ��Ӽƻ�");
         add.setPadding(dp(18), dp(12), dp(18), dp(12));
         LinearLayout bottom = vertical();
         bottom.setPadding(dp(16), dp(8), dp(16), dp(16));
@@ -191,7 +191,7 @@ public class MainActivity extends Activity {
         String date = dateFormat.format(currentDate.getTime());
         dateLabel.setText(date + "  " + weekday(currentDate));
         list.removeAllViews();
-        list.addView(muted("加载中..."));
+        list.addView(muted("������..."));
 
         runAsync(() -> {
             try {
@@ -211,7 +211,7 @@ public class MainActivity extends Activity {
                         showAuthScreen(false);
                     } else {
                         list.removeAllViews();
-                        list.addView(empty("加载失败：" + e.getMessage()));
+                        list.addView(empty("����ʧ�ܣ�" + e.getMessage()));
                     }
                 });
             }
@@ -222,7 +222,7 @@ public class MainActivity extends Activity {
         LinearLayout list = findByTag("list");
         list.removeAllViews();
         if (items.isEmpty()) {
-            list.addView(empty("今天暂无计划"));
+            list.addView(empty("�������޼ƻ�"));
             return;
         }
         for (ScheduleItem item : items) {
@@ -237,9 +237,9 @@ public class MainActivity extends Activity {
         card.setBackgroundColor(Color.WHITE);
 
         TextView title = title(item.title, 17);
-        TextView meta = muted((item.hasTime ? item.startTime + " - " + item.endTime : "全天")
-                + "  ·  " + statusLabel(item.status)
-                + "  ·  " + priorityLabel(item.priority));
+        TextView meta = muted((item.hasTime ? item.startTime + " - " + item.endTime : "ȫ��")
+                + "  ��  " + statusLabel(item.status)
+                + "  ��  " + priorityLabel(item.priority));
         card.addView(title);
         card.addView(space(4));
         card.addView(meta);
@@ -267,12 +267,12 @@ public class MainActivity extends Activity {
         boolean edit = existing != null;
         LinearLayout form = vertical();
         form.setPadding(dp(12), dp(8), dp(12), dp(2));
-        EditText title = input("标题");
-        EditText date = input("日期 yyyy-MM-dd");
-        EditText start = input("开始时间 HH:mm");
-        EditText end = input("结束时间 HH:mm");
-        EditText category = input("分类");
-        EditText description = input("描述");
+        EditText title = input("����");
+        EditText date = input("���� yyyy-MM-dd");
+        EditText start = input("��ʼʱ�� HH:mm");
+        EditText end = input("����ʱ�� HH:mm");
+        EditText category = input("����");
+        EditText description = input("����");
 
         date.setText(edit ? existing.date : dateFormat.format(currentDate.getTime()));
         start.setText(edit ? existing.startTime : "");
@@ -296,15 +296,15 @@ public class MainActivity extends Activity {
         form.addView(description);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(edit ? "编辑计划" : "添加计划")
+                .setTitle(edit ? "�༭�ƻ�" : "��Ӽƻ�")
                 .setView(form)
-                .setNegativeButton("取消", null)
-                .setPositiveButton(edit ? "保存" : "添加", null)
+                .setNegativeButton("ȡ��", null)
+                .setPositiveButton(edit ? "����" : "���", null)
                 .create();
 
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             if (title.getText().toString().trim().isEmpty()) {
-                toast("请填写标题");
+                toast("����д����");
                 return;
             }
             saveItem(existing, title, date, start, end, category, description, dialog);
@@ -373,7 +373,7 @@ public class MainActivity extends Activity {
         String text = readAll(stream);
         JSONObject json = new JSONObject(text);
         if (!json.optBoolean("ok")) {
-            throw new RuntimeException(json.optString("error", "请求失败"));
+            throw new RuntimeException(json.optString("error", "����ʧ��"));
         }
         return json;
     }
@@ -398,7 +398,7 @@ public class MainActivity extends Activity {
 
     private boolean isAuthExpired(Exception e) {
         String msg = e.getMessage();
-        return msg != null && (msg.contains("登录") || msg.contains("Unauthorized") || msg.contains("401"));
+        return msg != null && (msg.contains("��¼") || msg.contains("Unauthorized") || msg.contains("401"));
     }
 
     private String valueOr(EditText input, String fallback) {
@@ -407,20 +407,20 @@ public class MainActivity extends Activity {
     }
 
     private String weekday(Calendar c) {
-        return new String[]{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}[c.get(Calendar.DAY_OF_WEEK) - 1];
+        return new String[]{"����", "��һ", "�ܶ�", "����", "����", "����", "����"}[c.get(Calendar.DAY_OF_WEEK) - 1];
     }
 
     private String statusLabel(String status) {
-        if ("completed".equals(status)) return "已完成";
-        if ("in_progress".equals(status)) return "进行中";
-        if ("cancelled".equals(status)) return "已取消";
-        return "待办";
+        if ("completed".equals(status)) return "�����";
+        if ("in_progress".equals(status)) return "������";
+        if ("cancelled".equals(status)) return "��ȡ��";
+        return "����";
     }
 
     private String priorityLabel(String priority) {
-        if ("high".equals(priority)) return "高";
-        if ("low".equals(priority)) return "低";
-        return "中";
+        if ("high".equals(priority)) return "��";
+        if ("low".equals(priority)) return "��";
+        return "��";
     }
 
     @SuppressWarnings("unchecked")
@@ -517,7 +517,7 @@ public class MainActivity extends Activity {
     }
 
     private void toast(String message) {
-        Toast.makeText(this, message == null ? "操作失败" : message, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, message == null ? "����ʧ��" : message, Toast.LENGTH_SHORT).show();
     }
 
     private void hideKeyboard(View view) {
@@ -559,3 +559,4 @@ public class MainActivity extends Activity {
         }
     }
 }
+

@@ -5,15 +5,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gin-gonic/gin"
 	"chrona/server/internal/admin"
 	"chrona/server/internal/auth"
 	"chrona/server/internal/db"
 	"chrona/server/internal/schedules"
+	"github.com/gin-gonic/gin"
 )
 
 func Run() error {
 	cfg := LoadConfig()
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {
 		return err
 	}
@@ -29,6 +32,13 @@ func Run() error {
 	adminService := admin.NewService(store, admin.Config{DBPath: cfg.DBPath, Token: cfg.AdminToken})
 
 	router := gin.Default()
+	router.GET("/healthz", func(c *gin.Context) {
+		if err := store.DB.Ping(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "code": "database_unavailable"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "service": "chrona"})
+	})
 	router.Use(func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		origin := c.GetHeader("Origin")
@@ -61,6 +71,7 @@ func registerStaticRoutes(router *gin.Engine, distDir string) {
 	}
 
 	router.Static("/assets", filepath.Join(distDir, "assets"))
+	router.StaticFile("/chrona-mark.svg", filepath.Join(distDir, "chrona-mark.svg"))
 	router.GET("/", func(c *gin.Context) {
 		c.File(filepath.Join(distDir, "index.html"))
 	})

@@ -1,6 +1,7 @@
 export type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type Priority = 'low' | 'medium' | 'high';
 export type Status = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type ExecutionStatus = 'not_started' | 'running' | 'paused' | 'executed' | 'delayed' | 'skipped' | 'cancelled';
 
 export interface ScheduleItem {
   id: number;
@@ -12,6 +13,11 @@ export interface ScheduleItem {
   repeat: RepeatType;
   priority: Priority;
   status: Status;
+  executionStatus: ExecutionStatus;
+  actualStartAt: string;
+  actualEndAt: string;
+  executionMinutes: number;
+  failureReason: string;
   category: string;
   createdAt: string;
   updatedAt: string;
@@ -83,6 +89,7 @@ export interface StatsData {
   cancelled: number;
   total: number;
   byCategory: Record<string, number>;
+  execution?: Record<string, number>;
 }
 
 export type ViewName = 'day' | 'week' | 'month' | 'year' | 'search' | 'stats';
@@ -96,6 +103,8 @@ export interface ItemDraft {
   repeat: RepeatType;
   priority: Priority;
   status: Status;
+  executionStatus?: ExecutionStatus;
+  failureReason?: string;
   category: string;
 }
 

@@ -1,4 +1,4 @@
-import { priorityLabel, repeatLabel, statusLabel } from '../api';
+import { api, priorityLabel, repeatLabel, statusLabel } from '../api';
 import type { ScheduleItem } from '../types';
 
 export function renderItemCard(item: ScheduleItem, onClick: (item: ScheduleItem) => void): HTMLElement {
@@ -13,8 +13,28 @@ export function renderItemCard(item: ScheduleItem, onClick: (item: ScheduleItem)
       ${item.repeat !== 'none' ? `<span class="tag">${repeatLabel(item.repeat)}</span>` : ''}
       ${item.category ? `<span class="tag">${escapeHtml(item.category)}</span>` : ''}
     </div>
+    <div class="item-quick-actions">
+      ${item.executionStatus === 'executed' ? '<span class="execution-done">已完成</span>' : item.executionStatus === 'skipped' ? '<span class="execution-skipped">未完成</span>' : '<button type="button" data-execution="executed">已完成</button><button type="button" data-execution="skipped">未完成</button>'}
+      <button type="button" class="item-edit-action" data-edit>编辑</button>
+    </div>
   `;
   el.addEventListener('click', () => onClick(item));
+  el.querySelectorAll<HTMLButtonElement>('[data-execution]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      button.disabled = true;
+      try {
+        await api.setExecution(item.id, button.dataset.execution ?? 'not_started');
+        window.dispatchEvent(new CustomEvent('chrona-schedule-updated'));
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+  el.querySelector<HTMLButtonElement>('[data-edit]')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onClick(item);
+  });
   return el;
 }
 

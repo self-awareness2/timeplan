@@ -95,6 +95,8 @@ func (s *Service) Dispatch(userID string, req ActionRequest) (any, error) {
 	case "deleteItem":
 		id := int64Param(params, "id", 0)
 		return map[string]any{"id": id}, s.deleteItem(userID, id)
+	case "setExecution":
+		return s.setExecution(userID, int64Param(params, "id", 0), stringParam(params, "executionStatus", "not_started"), stringParam(params, "failureReason", ""))
 	case "search":
 		keyword := strings.ToLower(stringParam(params, "keyword", ""))
 		result := make([]Item, 0)
@@ -117,6 +119,13 @@ func (s *Service) Dispatch(userID string, req ActionRequest) (any, error) {
 			"completed":  count(items, func(i Item) bool { return i.Status == "completed" }),
 			"cancelled":  count(items, func(i Item) bool { return i.Status == "cancelled" }),
 			"total":      len(items),
+			"execution": map[string]int{
+				"notStarted": count(items, func(i Item) bool { return i.ExecutionStatus == "not_started" }),
+				"running":    count(items, func(i Item) bool { return i.ExecutionStatus == "running" }),
+				"executed":   count(items, func(i Item) bool { return i.ExecutionStatus == "executed" }),
+				"delayed":    count(items, func(i Item) bool { return i.ExecutionStatus == "delayed" }),
+				"skipped":    count(items, func(i Item) bool { return i.ExecutionStatus == "skipped" }),
+			},
 			"byCategory": byCategory,
 		}, nil
 	case "categories":
@@ -137,8 +146,37 @@ func (s *Service) Dispatch(userID string, req ActionRequest) (any, error) {
 	}
 }
 
+func (s *Service) setExecution(userID string, id int64, status, reason string) (Item, error) {
+	item, err := s.getItem(userID, id)
+	if err != nil {
+		return Item{}, err
+	}
+	status = enum(status, "not_started", "not_started", "running", "paused", "executed", "delayed", "skipped", "cancelled")
+	now := time.Now().UTC().Format(time.RFC3339)
+	actualStart, actualEnd := item.ActualStartAt, item.ActualEndAt
+	minutes := item.ExecutionMinutes
+	if status == "running" && actualStart == "" {
+		actualStart = now
+	}
+	if (status == "executed" || status == "delayed" || status == "skipped") && actualEnd == "" {
+		actualEnd = now
+	}
+	if actualStart != "" && actualEnd != "" {
+		start, startErr := time.Parse(time.RFC3339, actualStart)
+		end, endErr := time.Parse(time.RFC3339, actualEnd)
+		if startErr == nil && endErr == nil && end.After(start) {
+			minutes = int(end.Sub(start).Minutes())
+		}
+	}
+	_, err = s.store.DB.Exec(`UPDATE schedules SET execution_status = ?, actual_start_at = ?, actual_end_at = ?, execution_minutes = ?, failure_reason = ?, updated_at = ? WHERE user_id = ? AND id = ?`, status, actualStart, actualEnd, minutes, strings.TrimSpace(reason), now, userID, id)
+	if err != nil {
+		return Item{}, err
+	}
+	return s.getItem(userID, id)
+}
+
 func (s *Service) allItems(userID string) ([]Item, error) {
-	rows, err := s.store.DB.Query(`SELECT id, title, description, date, start_time, end_time, repeat_type, priority, status, category, created_at, updated_at FROM schedules WHERE user_id = ? ORDER BY date, start_time, id`, userID)
+	rows, err := s.store.DB.Query(`SELECT id, title, description, date, start_time, end_time, repeat_type, priority, status, execution_status, actual_start_at, actual_end_at, execution_minutes, failure_reason, category, created_at, updated_at FROM schedules WHERE user_id = ? ORDER BY date, start_time, id`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,19 +187,35 @@ func (s *Service) allItems(userID string) ([]Item, error) {
 		if err != nil {
 			return nil, err
 		}
+		if item.ExecutionStatus == "not_started" && dueToStart(item) {
+			now := time.Now().UTC().Format(time.RFC3339)
+			if _, updateErr := s.store.DB.Exec(`UPDATE schedules SET execution_status = 'running', actual_start_at = ?, updated_at = ? WHERE user_id = ? AND id = ?`, now, now, userID, item.ID); updateErr == nil {
+				item.ExecutionStatus = "running"
+				item.ActualStartAt = now
+			}
+		}
 		items = append(items, item)
 	}
 	return items, rows.Err()
 }
 
+func dueToStart(item Item) bool {
+	today := todayDate()
+	if item.Date != today || item.StartTime == "00:00" {
+		return false
+	}
+	now := time.Now().Format("15:04")
+	return item.StartTime <= now
+}
+
 func (s *Service) getItem(userID string, id int64) (Item, error) {
-	row := s.store.DB.QueryRow(`SELECT id, title, description, date, start_time, end_time, repeat_type, priority, status, category, created_at, updated_at FROM schedules WHERE user_id = ? AND id = ?`, userID, id)
+	row := s.store.DB.QueryRow(`SELECT id, title, description, date, start_time, end_time, repeat_type, priority, status, execution_status, actual_start_at, actual_end_at, execution_minutes, failure_reason, category, created_at, updated_at FROM schedules WHERE user_id = ? AND id = ?`, userID, id)
 	return scanItem(row)
 }
 
 func (s *Service) addItem(userID string, draft Draft) (any, error) {
 	item := cleanDraft(draft)
-	result, err := s.store.DB.Exec(`INSERT INTO schedules (user_id, title, description, date, start_time, end_time, repeat_type, priority, status, category, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userID, item.Title, item.Description, item.Date, item.StartTime, item.EndTime, item.Repeat, item.Priority, item.Status, item.Category, item.CreatedAt, item.UpdatedAt)
+	result, err := s.store.DB.Exec(`INSERT INTO schedules (user_id, title, description, date, start_time, end_time, repeat_type, priority, status, execution_status, failure_reason, category, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userID, item.Title, item.Description, item.Date, item.StartTime, item.EndTime, item.Repeat, item.Priority, item.Status, item.ExecutionStatus, item.FailureReason, item.Category, item.CreatedAt, item.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +232,7 @@ func (s *Service) updateItem(userID string, id int64, draft Draft) (Item, error)
 		return Item{}, err
 	}
 	item := cleanDraft(draft)
-	_, err := s.store.DB.Exec(`UPDATE schedules SET title = ?, description = ?, date = ?, start_time = ?, end_time = ?, repeat_type = ?, priority = ?, status = ?, category = ?, updated_at = ? WHERE user_id = ? AND id = ?`, item.Title, item.Description, item.Date, item.StartTime, item.EndTime, item.Repeat, item.Priority, item.Status, item.Category, item.UpdatedAt, userID, id)
+	_, err := s.store.DB.Exec(`UPDATE schedules SET title = ?, description = ?, date = ?, start_time = ?, end_time = ?, repeat_type = ?, priority = ?, status = ?, execution_status = ?, failure_reason = ?, category = ?, updated_at = ? WHERE user_id = ? AND id = ?`, item.Title, item.Description, item.Date, item.StartTime, item.EndTime, item.Repeat, item.Priority, item.Status, item.ExecutionStatus, item.FailureReason, item.Category, item.UpdatedAt, userID, id)
 	if err != nil {
 		return Item{}, err
 	}
@@ -203,7 +257,7 @@ type scanner interface {
 
 func scanItem(row scanner) (Item, error) {
 	var item Item
-	err := row.Scan(&item.ID, &item.Title, &item.Description, &item.Date, &item.StartTime, &item.EndTime, &item.Repeat, &item.Priority, &item.Status, &item.Category, &item.CreatedAt, &item.UpdatedAt)
+	err := row.Scan(&item.ID, &item.Title, &item.Description, &item.Date, &item.StartTime, &item.EndTime, &item.Repeat, &item.Priority, &item.Status, &item.ExecutionStatus, &item.ActualStartAt, &item.ActualEndAt, &item.ExecutionMinutes, &item.FailureReason, &item.Category, &item.CreatedAt, &item.UpdatedAt)
 	item.HasTime = item.StartTime != "00:00" || item.EndTime != "00:00"
 	return item, err
 }
@@ -211,17 +265,19 @@ func scanItem(row scanner) (Item, error) {
 func cleanDraft(d Draft) Item {
 	now := todayDate()
 	item := Item{
-		Title:       strings.TrimSpace(d.Title),
-		Description: d.Description,
-		Date:        fallback(d.Date, now),
-		StartTime:   fallback(d.StartTime, "00:00"),
-		EndTime:     fallback(d.EndTime, "00:00"),
-		Repeat:      enum(d.Repeat, "none", "daily", "weekly", "monthly", "yearly"),
-		Priority:    enum(d.Priority, "medium", "low", "medium", "high"),
-		Status:      enum(d.Status, "pending", "pending", "in_progress", "completed", "cancelled"),
-		Category:    d.Category,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		Title:           strings.TrimSpace(d.Title),
+		Description:     d.Description,
+		Date:            fallback(d.Date, now),
+		StartTime:       fallback(d.StartTime, "00:00"),
+		EndTime:         fallback(d.EndTime, "00:00"),
+		Repeat:          enum(d.Repeat, "none", "daily", "weekly", "monthly", "yearly"),
+		Priority:        enum(d.Priority, "medium", "low", "medium", "high"),
+		Status:          enum(d.Status, "pending", "pending", "in_progress", "completed", "cancelled"),
+		ExecutionStatus: enum(d.ExecutionStatus, "not_started", "not_started", "running", "paused", "executed", "delayed", "skipped", "cancelled"),
+		FailureReason:   strings.TrimSpace(d.FailureReason),
+		Category:        d.Category,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 	item.HasTime = item.StartTime != "00:00" || item.EndTime != "00:00"
 	return item

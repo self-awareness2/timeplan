@@ -31,6 +31,17 @@ func Run() error {
 	router := gin.Default()
 	router.Use(func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
+		origin := c.GetHeader("Origin")
+		if origin == "http://localhost" || origin == "https://localhost" || origin == "capacitor://localhost" {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Vary", "Origin")
+		}
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 	})
 
 	auth.RegisterRoutes(router.Group("/auth"), authService)

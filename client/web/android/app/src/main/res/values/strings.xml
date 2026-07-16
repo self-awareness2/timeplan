@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">时间安排计划</string>
+    <string name="title_activity_main">时间安排计划</string>
+    <string name="package_name">com.timeplanner.app</string>
+    <string name="custom_url_scheme">com.timeplanner.app</string>
+</resources>

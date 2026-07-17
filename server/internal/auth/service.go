@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"chrona/server/internal/db"
@@ -16,8 +17,10 @@ import (
 )
 
 type Service struct {
-	store  *db.Store
-	secret []byte
+	store           *db.Store
+	secret          []byte
+	loginLimiter    *attemptLimiter
+	registerLimiter *attemptLimiter
 }
 
 type User struct {
@@ -25,8 +28,13 @@ type User struct {
 	Username string `json:"username"`
 }
 
-func NewService(store *db.Store, secret string) *Service {
-	return &Service{store: store, secret: []byte(secret)}
+func NewService(store *db.Store, secret string, maxAttempts int) *Service {
+	return &Service{
+		store:           store,
+		secret:          []byte(secret),
+		loginLimiter:    newAttemptLimiter(maxAttempts, 15*time.Minute),
+		registerLimiter: newAttemptLimiter(maxAttempts, 15*time.Minute),
+	}
 }
 
 func RegisterRoutes(group *gin.RouterGroup, service *Service) {
@@ -39,6 +47,10 @@ func RegisterRoutes(group *gin.RouterGroup, service *Service) {
 }
 
 func (s *Service) register(c *gin.Context) {
+	if !s.registerLimiter.Allow(c.ClientIP()) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"ok": false, "code": "rate_limited", "error": "too many attempts, try again later"})
+		return
+	}
 	var req credentials
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "code": "invalid_request", "error": "invalid request"})
@@ -72,6 +84,10 @@ func (s *Service) register(c *gin.Context) {
 }
 
 func (s *Service) login(c *gin.Context) {
+	if !s.loginLimiter.Allow(c.ClientIP()) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"ok": false, "code": "rate_limited", "error": "too many attempts, try again later"})
+		return
+	}
 	var req credentials
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "code": "invalid_request", "error": "invalid request"})
@@ -88,7 +104,43 @@ func (s *Service) login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "code": "invalid_credentials", "error": "username or password is incorrect"})
 		return
 	}
+	s.loginLimiter.Reset(c.ClientIP())
 	s.respondSession(c, user)
+}
+
+type attemptLimiter struct {
+	mu          sync.Mutex
+	maxAttempts int
+	window      time.Duration
+	entries     map[string]attemptWindow
+}
+
+type attemptWindow struct {
+	startedAt time.Time
+	attempts  int
+}
+
+func newAttemptLimiter(maxAttempts int, window time.Duration) *attemptLimiter {
+	return &attemptLimiter{maxAttempts: maxAttempts, window: window, entries: make(map[string]attemptWindow)}
+}
+
+func (l *attemptLimiter) Allow(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	entry := l.entries[key]
+	if entry.startedAt.IsZero() || now.Sub(entry.startedAt) >= l.window {
+		entry = attemptWindow{startedAt: now}
+	}
+	entry.attempts++
+	l.entries[key] = entry
+	return entry.attempts <= l.maxAttempts
+}
+
+func (l *attemptLimiter) Reset(key string) {
+	l.mu.Lock()
+	delete(l.entries, key)
+	l.mu.Unlock()
 }
 
 func (s *Service) RequireUser() gin.HandlerFunc {

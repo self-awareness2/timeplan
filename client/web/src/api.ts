@@ -8,6 +8,7 @@ import type {
   WeekViewData,
   YearViewData,
 } from './types';
+import type { RecurrenceScope } from './types';
 
 interface ApiResponse<T> {
   ok: boolean;
@@ -80,6 +81,26 @@ async function authCall<T>(path: string, body?: object): Promise<T> {
   return parsed.data as T;
 }
 
+async function downloadExport(): Promise<void> {
+  const res = await fetch(`${apiBasePath()}/api/export`, {
+    credentials: 'include',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    handleAuthError(res.status);
+    throw new Error('export failed');
+  }
+  const blob = await res.blob();
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `chrona-export-${todayString()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export const api = {
   isDesktop: isDesktopBridge,
   authExpiredEvent,
@@ -103,12 +124,13 @@ export const api = {
   listYear: (year: number) => call<YearViewData>('listYear', { year }),
   getItem: (id: number) => call<ScheduleItem>('getItem', { id }),
   addItem: (item: ItemDraft) => call<{ id: number; item: ScheduleItem }>('addItem', { item }),
-  updateItem: (id: number, item: ItemDraft) => call<ScheduleItem>('updateItem', { id, item }),
-  deleteItem: (id: number) => call<{ id: number }>('deleteItem', { id }),
-  setExecution: (id: number, executionStatus: string, failureReason = '') => call<ScheduleItem>('setExecution', { id, executionStatus, failureReason }),
+  updateItem: (id: number, item: ItemDraft, scope: RecurrenceScope = 'series', occurrenceDate = '') => call<ScheduleItem>('updateItem', { id, item, scope, occurrenceDate }),
+  deleteItem: (id: number, scope: RecurrenceScope = 'series', occurrenceDate = '') => call<{ id: number }>('deleteItem', { id, scope, occurrenceDate }),
+  setExecution: (id: number, executionStatus: string, failureReason = '', occurrenceDate = '') => call<ScheduleItem>('setExecution', { id, executionStatus, failureReason, occurrenceDate }),
   search: (keyword: string) => call<{ keyword: string; items: ScheduleItem[] }>('search', { keyword }),
   stats: () => call<StatsData>('stats'),
   categories: () => call<string[]>('categories'),
+  downloadExport,
 };
 
 export function todayString(): string {

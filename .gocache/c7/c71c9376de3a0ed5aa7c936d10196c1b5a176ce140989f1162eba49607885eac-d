@@ -1,0 +1,4 @@
+=== RUN   TestAdminTemplateRenders
+--- PASS: TestAdminTemplateRenders (0.00s)
+PASS
+ok  	chrona/server/internal/admin	1.321s

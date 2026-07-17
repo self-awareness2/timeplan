@@ -19,6 +19,8 @@ type IconName =
   | 'chevron-left'
   | 'chevron-right'
   | 'clock'
+
+  | 'download'
   | 'log-out'
   | 'moon'
   | 'plus'
@@ -47,7 +49,10 @@ export class App {
   constructor(root: HTMLElement) {
     this.root = root;
     this.renderShell();
-    window.addEventListener('chrona-schedule-updated', () => { void this.renderView(); });
+    window.addEventListener('chrona-schedule-updated', () => {
+      void this.refreshHeader();
+      void this.renderView();
+    });
   }
 
   async init(): Promise<void> {
@@ -59,15 +64,23 @@ export class App {
     this.root.innerHTML = `
       <div class="app-shell">
         <header class="header">
-          <h1>Chrona 时序</h1>
-          <div class="header-meta" id="header-meta"></div>
-          <div class="header-stats" id="header-stats"></div>
+          <h1 class="product-brand">
+            <img src="./chrona-mark.svg" alt="" />
+            <span>Chrona <b>时序</b></span>
+          </h1>
+          <div class="header-context">
+            <div class="header-meta" id="header-meta"></div>
+            <div class="header-stats" id="header-stats"></div>
+          </div>
           <div class="header-search">
             <input type="search" id="search-input" placeholder="搜索计划..." />
             <button class="btn" id="search-btn">${iconSvg('search')}<span>搜索</span></button>
           </div>
-          <button class="btn auth-logout" id="logout-btn">${iconSvg('log-out')}<span>退出</span></button>
-          <button class="theme-toggle" id="theme-toggle" title="切换主题" aria-label="切换主题">${iconSvg('sun')}</button>
+          <div class="header-actions">
+            <button class="theme-toggle" id="export-btn" title="导出数据" aria-label="导出数据">${iconSvg('download')}</button>
+            <button class="btn auth-logout" id="logout-btn">${iconSvg('log-out')}<span>退出</span></button>
+            <button class="theme-toggle" id="theme-toggle" title="切换主题" aria-label="切换主题">${iconSvg('sun')}</button>
+          </div>
         </header>
         <nav class="sidebar" id="sidebar"></nav>
         <main class="main" id="main"></main>
@@ -88,6 +101,7 @@ export class App {
     });
     this.root.querySelector('#mobile-add-btn')?.addEventListener('click', () => this.openAddModal());
     this.root.querySelector('#theme-toggle')?.addEventListener('click', () => this.toggleTheme());
+    this.root.querySelector('#export-btn')?.addEventListener('click', () => { void api.downloadExport(); });
 
     const logoutBtn = this.root.querySelector('#logout-btn') as HTMLButtonElement | null;
     if (logoutBtn) {
@@ -170,6 +184,7 @@ export class App {
 
   private async renderView(): Promise<void> {
     this.updateNavActive();
+    this.mainEl.dataset.view = this.state.view;
     const header = document.createElement('div');
     header.className = 'view-header';
     header.innerHTML = `<h2>${this.viewTitle()}</h2>`;
@@ -329,6 +344,7 @@ function iconSvg(name: IconName): string {
     'chevron-left': '<path d="M15 18l-6-6 6-6"/>',
     'chevron-right': '<path d="M9 6l6 6-6 6"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
     'log-out': '<path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-5"/>',
     moon: '<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.5 6.5 0 0 0 21 12.8z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',

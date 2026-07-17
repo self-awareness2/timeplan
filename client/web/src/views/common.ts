@@ -24,7 +24,7 @@ export function renderItemCard(item: ScheduleItem, onClick: (item: ScheduleItem)
       event.stopPropagation();
       button.disabled = true;
       try {
-        await api.setExecution(item.id, button.dataset.execution ?? 'not_started');
+        await api.setExecution(item.id, button.dataset.execution ?? 'not_started', '', item.occurrenceDate);
         window.dispatchEvent(new CustomEvent('chrona-schedule-updated'));
       } finally {
         button.disabled = false;

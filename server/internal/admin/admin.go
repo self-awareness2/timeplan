@@ -118,7 +118,9 @@ func (s *Service) requireAdmin() gin.HandlerFunc {
 
 func (s *Service) index(c *gin.Context) {
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	_ = adminTemplate.Execute(c.Writer, gin.H{})
+	if err := adminTemplate.Execute(c.Writer, gin.H{}); err != nil {
+		c.Error(err)
+	}
 }
 
 func (s *Service) summary(c *gin.Context) {
@@ -137,7 +139,7 @@ func (s *Service) summary(c *gin.Context) {
 		PendingCount:    s.count(`SELECT COUNT(*) FROM schedules WHERE status = 'pending'`),
 	}
 	if s.token != "" {
-		data.Protection = "管理�?Token"
+		data.Protection = "管理员令牌"
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": data})
 }
@@ -486,8 +488,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       <section class="content">
         <div class="view active" id="view-users">
         <div class="stats">
-          <div class="card stat"><div class="label">总用�?/div><div class="num" id="userCount">-</div></div>
-          <div class="card stat"><div class="label">总计�?/div><div class="num" id="scheduleCount">-</div></div>
+          <div class="card stat"><div class="label">总用户</div><div class="num" id="userCount">-</div></div>
+          <div class="card stat"><div class="label">总计划</div><div class="num" id="scheduleCount">-</div></div>
           <div class="card stat"><div class="label">今日新增用户</div><div class="num" id="todayUsers">-</div></div>
           <div class="card stat"><div class="label">今日计划</div><div class="num" id="todaySchedules">-</div></div>
         </div>
@@ -501,17 +503,17 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>用户</th><th>计划</th><th>完成</th><th>待办</th><th>最近活动</th><th>注册时间</th><th>操作</th></tr></thead>
-                <tbody id="usersBody"><tr><td colspan="7" class="empty">加载�?..</td></tr></tbody>
+                <tbody id="usersBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody>
               </table>
             </div>
             <div class="footer">
               <span class="muted" id="pageInfo">-</span>
-              <div><button class="btn" id="prevBtn">上一�?/button> <button class="btn" id="nextBtn">下一�?/button></div>
+              <div><button class="btn" id="prevBtn">上一页</button> <button class="btn" id="nextBtn">下一页</button></div>
             </div>
           </section>
           <aside class="card detail-card">
             <div class="panel-head"><h2>用户详情</h2><span class="pill" id="detailState">未选择</span></div>
-            <div class="detail" id="detail"><div class="empty">点击左侧用户查看账号和计划明�?/div></div>
+            <div class="detail" id="detail"><div class="empty">点击左侧用户查看账号和计划明细</div></div>
           </aside>
         </div>
         <div class="dbline" id="dbline"></div>
@@ -539,9 +541,9 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
         <div class="view" id="view-settings">
           <div class="section-title"><h2>系统设置</h2></div>
           <div class="mini-grid">
-            <div class="card info-card"><strong>管理员访�?/strong><div class="muted">默认仅本�?内网可访问；公网使用时建议设�?CHRONA_ADMIN_TOKEN�?/div></div>
-            <div class="card info-card"><strong>数据�?/strong><div class="muted" id="settingsDb">-</div></div>
-            <div class="card info-card"><strong>后台权限</strong><div class="muted">当前版本支持用户增删改查和只读计划查看�?/div></div>
+            <div class="card info-card"><strong>管理员访问</strong><div class="muted">默认仅本机和内网可访问；公网使用时建议设置 CHRONA_ADMIN_TOKEN。</div></div>
+            <div class="card info-card"><strong>数据文件</strong><div class="muted" id="settingsDb">-</div></div>
+            <div class="card info-card"><strong>后台权限</strong><div class="muted">当前版本支持用户增删改查和只读计划查看。</div></div>
           </div>
         </div>
       </section>
@@ -554,7 +556,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
         <input type="hidden" id="userId" />
         <div class="field"><label>用户名</label><input id="userUsername" autocomplete="off" /></div>
         <div class="field"><label>密码</label><input id="userPassword" type="password" autocomplete="new-password" /></div>
-        <div class="hint" id="passwordHint">新增用户时密码至�?6 位�?/div>
+        <div class="hint" id="passwordHint">新增用户时密码至少 6 位。</div>
       </div>
       <div class="modal-foot">
         <button class="btn" id="modalCancel">取消</button>
@@ -577,8 +579,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
     const text = (id, value) => document.getElementById(id).textContent = value;
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const fmt = (s) => s ? s.replace('T', ' ').slice(0, 19) : '-';
-    const statusLabel = { pending:'待办', in_progress:'进行�?, completed:'已完�?, cancelled:'已取�? };
-    const priorityLabel = { low:'�?, medium:'�?, high:'�? };
+    const statusLabel = { pending:'待办', in_progress:'进行中', completed:'已完成', cancelled:'已取消' };
+    const priorityLabel = { low:'低', medium:'中', high:'高' };
 
     async function loadSummary() {
       const s = await api('/admin/api/summary');
@@ -588,7 +590,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       text('todayUsers', s.todayNewUsers);
       text('todaySchedules', s.todaySchedules);
       text('generated', '更新时间 ' + s.generatedAt + ' · ' + s.protection);
-      text('dbline', '数据库：' + s.dbPath + ' · 大小�? + s.dbSize + ' · 待办 ' + s.pendingCount + ' · 进行�?' + s.inProgressCount + ' · 已完�?' + s.completedCount);
+      text('dbline', '数据库：' + s.dbPath + ' · 大小 ' + s.dbSize + ' · 待办 ' + s.pendingCount + ' · 进行中 ' + s.inProgressCount + ' · 已完成 ' + s.completedCount);
       updateOverview();
       text('settingsDb', s.dbPath + ' · ' + s.dbSize);
     }
@@ -609,7 +611,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
           '<td>' + fmt(u.createdAt) + '</td>' +
           '<td><div class="actions"><button class="btn small" data-edit="' + esc(u.id) + '" data-username="' + esc(u.username) + '">编辑</button><button class="btn small danger" data-delete="' + esc(u.id) + '" data-username="' + esc(u.username) + '">删除</button></div></td></tr>').join('');
       }
-      text('pageInfo', '�?' + page + ' 页，�?' + total + ' 个用�?);
+      text('pageInfo', '第 ' + page + ' 页，共 ' + total + ' 个用户');
       document.getElementById('prevBtn').disabled = page <= 1;
       document.getElementById('nextBtn').disabled = page * limit >= total;
       body.querySelectorAll('tr[data-id]').forEach(row => row.addEventListener('click', (event) => {
@@ -630,8 +632,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
         '<div class="kv"><div class="muted">用户名</div><div class="username">' + esc(u.username) + '</div>' +
         '<div class="muted">用户ID</div><div>' + esc(u.id) + '</div>' +
         '<div class="muted">注册时间</div><div>' + fmt(u.createdAt) + '</div>' +
-        '<div class="muted">计划数量</div><div>' + u.scheduleCount + ' �?/div></div>' +
-        '<div class="schedule-list">' + (data.schedules.length ? data.schedules.map(renderSchedule).join('') : '<div class="empty">该用户暂无计�?/div>') + '</div>';
+        '<div class="muted">计划数量</div><div>' + u.scheduleCount + ' 个</div></div>' +
+        '<div class="schedule-list">' + (data.schedules.length ? data.schedules.map(renderSchedule).join('') : '<div class="empty">该用户暂无计划</div>') + '</div>';
     }
 
     function renderSchedule(s) {
@@ -660,8 +662,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
 
     function updateOverview() {
       if (!lastSummary) return;
-      text('overviewUsers', '总用�?' + lastSummary.userCount + '，今日新�?' + lastSummary.todayNewUsers);
-      text('overviewPlans', '总计�?' + lastSummary.scheduleCount + '，今日计�?' + lastSummary.todaySchedules);
+      text('overviewUsers', '总用户 ' + lastSummary.userCount + '，今日新增 ' + lastSummary.todayNewUsers);
+      text('overviewPlans', '总计划 ' + lastSummary.scheduleCount + '，今日计划 ' + lastSummary.todaySchedules);
       text('overviewDone', '待办 ' + lastSummary.pendingCount + '，进行中 ' + lastSummary.inProgressCount + '，已完成 ' + lastSummary.completedCount);
       text('overviewDb', lastSummary.dbPath + ' · ' + lastSummary.dbSize);
     }
@@ -681,7 +683,7 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       document.getElementById('userUsername').value = username;
       document.getElementById('userPassword').value = '';
       text('modalTitle', id ? '编辑用户' : '新增用户');
-      text('passwordHint', id ? '不填写密码则保持原密码不变�? : '新增用户时密码至�?6 位�?);
+      text('passwordHint', id ? '不填写密码则保持原密码不变。' : '新增用户时密码至少 6 位。');
       document.getElementById('userModal').classList.add('show');
       document.getElementById('userUsername').focus();
     }
@@ -694,8 +696,8 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
       const id = document.getElementById('userId').value;
       const username = document.getElementById('userUsername').value.trim();
       const password = document.getElementById('userPassword').value;
-      if (!username) return alert('请填写邮�?/ 账号');
-      if (!id && password.length < 6) return alert('新增用户密码至少 6 �?);
+      if (!username) return alert('请填写用户名。');
+      if (!id && password.length < 6) return alert('新增用户密码至少 6 位。');
       const body = JSON.stringify({ username, password });
       if (id) {
         await api('/admin/api/users/' + encodeURIComponent(id), { method: 'PUT', body });
@@ -709,12 +711,12 @@ var adminTemplate = template.Must(template.New("admin").Parse(`<!doctype html>
     }
 
     async function deleteUser(id, username) {
-      if (!confirm('确定删除用户 ' + username + '？该用户的计划也会一起删除�?)) return;
+      if (!confirm('确定删除用户 ' + username + '？该用户的计划也会一起删除。')) return;
       await api('/admin/api/users/' + encodeURIComponent(id), { method: 'DELETE' });
       if (selectedId === id) {
         selectedId = '';
         text('detailState', '未选择');
-        document.getElementById('detail').innerHTML = '<div class="empty">点击左侧用户查看账号和计划明�?/div>';
+        document.getElementById('detail').innerHTML = '<div class="empty">点击左侧用户查看账号和计划明细</div>';
       }
       await refresh();
     }

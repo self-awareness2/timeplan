@@ -2,7 +2,9 @@ import { api } from '../api';
 import type { ScheduleItem } from '../types';
 import { renderEmpty, renderItemCard } from './common';
 
-const HOUR_HEIGHT = 48;
+function hourHeight(): number {
+  return window.matchMedia('(min-width: 769px)').matches ? 42 : 48;
+}
 
 function timeToMinutes(time: string): number {
   const [hour, minute] = time.split(':').map(Number);
@@ -29,6 +31,7 @@ export async function renderDayView(
   onTimeRangeSelect?: (startTime: string, endTime: string) => void
 ): Promise<string> {
   const data = await api.listDay(date);
+  const rowHeight = hourHeight();
   container.innerHTML = '';
 
   const timed: ScheduleItem[] = [];
@@ -73,8 +76,8 @@ export async function renderDayView(
       const end = item.endTime && item.endTime !== '00:00' ? timeToMinutes(item.endTime) : start + 60;
       const duration = Math.max(30, end - start);
 
-      card.style.top = `${(start / 60) * HOUR_HEIGHT}px`;
-      card.style.minHeight = `${Math.max(44, (duration / 60) * HOUR_HEIGHT - 8)}px`;
+      card.style.top = `${(start / 60) * rowHeight}px`;
+      card.style.minHeight = `${Math.max(40, (duration / 60) * rowHeight - 7)}px`;
       list.appendChild(card);
     }
   }
@@ -89,19 +92,20 @@ export async function renderDayView(
     const minutes = now.getHours() * 60 + now.getMinutes();
     const marker = document.createElement('div');
     marker.className = 'current-time-marker';
-    marker.style.top = `${(minutes / 60) * HOUR_HEIGHT}px`;
+    marker.style.top = `${(minutes / 60) * rowHeight}px`;
     marker.innerHTML = `<span>${currentTimeLabel(now)}</span>`;
     list.appendChild(marker);
   }
 
-  if (onTimeRangeSelect) enableRangeSelection(list, onTimeRangeSelect);
+  if (onTimeRangeSelect) enableRangeSelection(list, onTimeRangeSelect, rowHeight);
 
   return data.date;
 }
 
 function enableRangeSelection(
   list: HTMLElement,
-  onTimeRangeSelect: (startTime: string, endTime: string) => void
+  onTimeRangeSelect: (startTime: string, endTime: string) => void,
+  rowHeight: number
 ): void {
   let startY = 0;
   let selecting = false;
@@ -110,7 +114,7 @@ function enableRangeSelection(
 
   const yToMinutes = (clientY: number) => {
     const rect = list.getBoundingClientRect();
-    const raw = ((clientY - rect.top + list.scrollTop) / HOUR_HEIGHT) * 60;
+    const raw = ((clientY - rect.top + list.scrollTop) / rowHeight) * 60;
     const snapped = Math.round(raw / 15) * 15;
     return Math.max(0, Math.min(24 * 60, snapped));
   };
@@ -118,8 +122,8 @@ function enableRangeSelection(
   const render = (a: number, b: number) => {
     const top = Math.min(a, b);
     const bottom = Math.max(a, b);
-    selection.style.top = `${(top / 60) * HOUR_HEIGHT}px`;
-    selection.style.height = `${Math.max(12, ((bottom - top) / 60) * HOUR_HEIGHT)}px`;
+    selection.style.top = `${(top / 60) * rowHeight}px`;
+    selection.style.height = `${Math.max(12, ((bottom - top) / 60) * rowHeight)}px`;
     selection.textContent = `${minutesToTime(top)} - ${minutesToTime(Math.max(bottom, top + 15))}`;
   };
 

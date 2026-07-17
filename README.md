@@ -116,3 +116,7 @@ cmake --build build --config Release
 ## Mobile Path
 
 The mobile app should reuse `client/web` through Capacitor or a similar WebView wrapper. Point the mobile client at the same server URL to share accounts and data.
+
+## Deployment
+
+For Docker deployment, versioned database migrations, backups, and upgrade steps, see [docs/deployment.md](docs/deployment.md).

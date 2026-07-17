@@ -20,6 +20,9 @@ func Run() error {
 	if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(cfg.BackupDir, 0o755); err != nil {
+		return err
+	}
 
 	store, err := db.Open(cfg.DBPath)
 	if err != nil {
@@ -27,11 +30,14 @@ func Run() error {
 	}
 	defer store.Close()
 
-	authService := auth.NewService(store, cfg.Secret)
+	authService := auth.NewService(store, cfg.Secret, cfg.AuthMaxAttempts)
 	scheduleService := schedules.NewService(store)
 	adminService := admin.NewService(store, admin.Config{DBPath: cfg.DBPath, Token: cfg.AdminToken})
 
 	router := gin.Default()
+	if err := router.SetTrustedProxies(nil); err != nil {
+		return err
+	}
 	router.GET("/healthz", func(c *gin.Context) {
 		if err := store.DB.Ping(); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "code": "database_unavailable"})
@@ -41,11 +47,15 @@ func Run() error {
 	})
 	router.Use(func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "same-origin")
 		origin := c.GetHeader("Origin")
-		if origin == "http://localhost" || origin == "https://localhost" || origin == "capacitor://localhost" {
+		if isAllowedOrigin(origin, cfg.AllowedOrigins) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Credentials", "true")
 			c.Header("Vary", "Origin")
 		}
 		if c.Request.Method == http.MethodOptions {
@@ -60,6 +70,15 @@ func Run() error {
 	registerStaticRoutes(router, cfg.DistDir)
 
 	return router.Run(":" + cfg.Port)
+}
+
+func isAllowedOrigin(origin string, allowedOrigins []string) bool {
+	for _, allowed := range allowedOrigins {
+		if origin == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 func registerStaticRoutes(router *gin.Engine, distDir string) {

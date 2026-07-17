@@ -1,0 +1,4 @@
+# test log
+getenv GOTMPDIR
+stat C:\Users\ADMINI~1\AppData\Local\Temp\TestBackupCreatesReadableSnapshot336351976
+open C:\Users\ADMINI~1\AppData\Local\Temp

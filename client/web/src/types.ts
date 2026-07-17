@@ -2,6 +2,7 @@ export type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type Priority = 'low' | 'medium' | 'high';
 export type Status = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type ExecutionStatus = 'not_started' | 'running' | 'paused' | 'executed' | 'delayed' | 'skipped' | 'cancelled';
+export type RecurrenceScope = 'this' | 'series';
 
 export interface ScheduleItem {
   id: number;
@@ -19,6 +20,9 @@ export interface ScheduleItem {
   executionMinutes: number;
   failureReason: string;
   category: string;
+  seriesParentId: number;
+  occurrenceDate: string;
+  isVirtual: boolean;
   createdAt: string;
   updatedAt: string;
   hasTime: boolean;
@@ -90,6 +94,8 @@ export interface StatsData {
   total: number;
   byCategory: Record<string, number>;
   execution?: Record<string, number>;
+  byReason?: Record<string, number>;
+  daily?: Array<{ date: string; plannedMinutes: number; actualMinutes: number; executed: number; skipped: number }>;
 }
 
 export type ViewName = 'day' | 'week' | 'month' | 'year' | 'search' | 'stats';

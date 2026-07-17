@@ -3,6 +3,7 @@
 /assets/
 /run/
 /tools/
+.env
 /.claude/
 /client/web/node_modules/
 /client/web/dist/

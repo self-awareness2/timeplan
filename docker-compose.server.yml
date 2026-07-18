@@ -1,0 +1,14 @@
+services:
+  chrona:
+    image: ${CHRONA_IMAGE:?set CHRONA_IMAGE in .env}
+    environment:
+      CHRONA_ENV: production
+      CHRONA_SECRET: ${CHRONA_SECRET:?set CHRONA_SECRET in .env}
+      CHRONA_ADMIN_TOKEN: ${CHRONA_ADMIN_TOKEN:?set CHRONA_ADMIN_TOKEN in .env}
+      CHRONA_ALLOWED_ORIGINS: ${CHRONA_ALLOWED_ORIGINS:-http://47.120.36.243}
+      CHRONA_AUTH_MAX_ATTEMPTS: ${CHRONA_AUTH_MAX_ATTEMPTS:-10}
+    ports:
+      - "127.0.0.1:${CHRONA_PORT:-8765}:8765"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

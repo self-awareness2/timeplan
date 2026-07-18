@@ -2,14 +2,15 @@ services:
   chrona:
     build:
       context: .
-    image: chrona:local
+    image: ${CHRONA_IMAGE:-chrona:local}
     environment:
       CHRONA_ENV: ${CHRONA_ENV:-development}
       CHRONA_SECRET: ${CHRONA_SECRET:-dev-change-me}
+      CHRONA_ADMIN_TOKEN: ${CHRONA_ADMIN_TOKEN:-}
       CHRONA_ALLOWED_ORIGINS: ${CHRONA_ALLOWED_ORIGINS:-http://localhost}
       CHRONA_AUTH_MAX_ATTEMPTS: ${CHRONA_AUTH_MAX_ATTEMPTS:-10}
     ports:
-      - "${CHRONA_PORT:-8765}:8765"
+      - "127.0.0.1:${CHRONA_PORT:-8765}:8765"
     volumes:
       - ./data:/app/data
     restart: unless-stopped

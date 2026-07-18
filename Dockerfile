@@ -1,11 +1,13 @@
-FROM node:20-bookworm-slim AS web-build
+ARG DOCKER_REGISTRY=docker.io
+
+FROM ${DOCKER_REGISTRY}/library/node:20-bookworm-slim AS web-build
 WORKDIR /src/client/web
 COPY client/web/package.json client/web/package-lock.json ./
 RUN npm ci
 COPY client/web/ ./
 RUN npm run build
 
-FROM golang:1.22-bookworm AS server-build
+FROM ${DOCKER_REGISTRY}/library/golang:1.22-bookworm AS server-build
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
 RUN go mod download
@@ -13,7 +15,7 @@ COPY server/ ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/chrona ./cmd/server
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/chrona-backup ./cmd/backup
 
-FROM debian:bookworm-slim
+FROM ${DOCKER_REGISTRY}/library/debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \

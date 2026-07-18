@@ -3412,3 +3412,124 @@ summary:focus-visible {
     max-width: 390px;
   }
 }
+
+/* Design-engineering refinement: fast daily workflows, deliberate state changes. */
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --focus-ring: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+body {
+  font-optical-sizing: auto;
+  text-size-adjust: 100%;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 76%, white);
+  outline-offset: 3px;
+  box-shadow: var(--focus-ring);
+}
+
+/* View changes happen often in a planner, so retain orientation without delaying work. */
+.main > div:not(.view-header) {
+  animation: view-fade 180ms var(--ease-out-strong) both;
+}
+
+.item-card,
+.week-item {
+  animation: none;
+}
+
+.modal-overlay {
+  animation: overlay-enter 180ms var(--ease-out-strong) both;
+}
+
+.modal {
+  animation: modal-refine-enter 220ms var(--ease-out-strong) both;
+}
+
+.modal-header,
+.modal-footer {
+  background: color-mix(in srgb, var(--panel-solid) 94%, transparent);
+}
+
+.auth-card {
+  border-color: color-mix(in srgb, var(--line) 92%, white);
+}
+
+@keyframes view-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes overlay-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-refine-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-brand:hover img {
+    transform: rotate(-2deg) scale(1.025);
+  }
+
+  .nav-btn:hover {
+    transform: translateX(1px);
+  }
+
+  .item-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .product-brand:hover img,
+  .nav-btn:hover,
+  .nav-btn:hover .nav-icon,
+  .item-card:hover,
+  .btn:hover,
+  .btn:hover .btn-icon,
+  .theme-toggle:hover,
+  .theme-toggle:hover .btn-icon {
+    transform: none;
+  }
+
+  .item-card:hover,
+  .btn:hover,
+  .theme-toggle:hover {
+    box-shadow: var(--shadow-xs);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main > div:not(.view-header),
+  .item-card,
+  .week-item,
+  .stats-grid .stat-card,
+  .year-grid .year-month-card,
+  .modal-overlay,
+  .modal {
+    animation-duration: 160ms !important;
+    animation-name: reduced-fade !important;
+    transform: none !important;
+  }
+
+  .main,
+  .main * {
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes reduced-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
